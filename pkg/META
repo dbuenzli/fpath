@@ -1,0 +1,17 @@
+description = "File paths for OCaml"
+version = "%%VERSION%%"
+
+archive(byte) = "fpath.cma"
+archive(byte, plugin) = "fpath.cma"
+archive(native) = "fpath.cmxa"
+archive(native, plugin) = "fpath.cmxs"
+
+package "top" (
+  description = "Fpath toplevel support"
+  version = "%%VERSION%%"
+  requires = "fpath"
+  archive(byte) = "fpath_top.cma"
+  archive(byte, plugin) = "fpath_top.cma"
+  archive(native) = "fpath_top.cmxa"
+  archive(native, plugin) = "fpath_top.cmxs"
+)

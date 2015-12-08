@@ -1,0 +1,20 @@
+opam-version: "1.2"
+maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
+authors: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
+homepage: "http://erratique.ch/software/fpath"
+doc: "http://erratique.ch/software/fpath"
+dev-repo: "http://erratique.ch/repos/fpath.git"
+bug-reports: "https://github.com/dbuenzli/fpath/issues"
+tags: [ "file" "system" "path" "org:erratique" ]
+license: "BSD-3-Clause"
+available: [ ocaml-version >= "4.01.0"]
+depends: [
+   "ocamlfind" {build}
+   "astring"
+]
+build:
+[
+  [ "ocaml" "pkg/git.ml" ]
+  [ "ocaml" "pkg/build.ml" "native=%{ocaml-native}%"
+                           "native-dynlink=%{ocaml-native-dynlink}%"]
+]

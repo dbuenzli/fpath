@@ -68,42 +68,42 @@ let parse_unc_windows s =
      if there's only a volume, UNC paths are always absolute. *)
   let p = String.sub ~start:2 s in
   let not_bslash c = c <> '\\' in
-  let parse_seg p = String.Sub.min_span ~min:1 ~sat:not_bslash p in
+  let parse_seg p = String.Sub.span ~min:1 ~sat:not_bslash p in
   let ensure_root r = Some (if String.Sub.is_empty r then (s ^ "\\") else s) in
   match parse_seg p with
-  | None -> None (* \\ or \\\ *)
-  | Some (seg1, rest) ->
+  | (seg1, _) when String.Sub.is_empty seg1 -> None (* \\ or \\\ *)
+  | (seg1, rest) ->
       let seg1_len = String.Sub.length seg1 in
       match String.Sub.get_head ~rev:true seg1 with
       | '.' when seg1_len = 1 -> (* \\.\device\ *)
           begin match parse_seg (String.Sub.tail rest) with
-          | None -> None
-          | Some (_, rest) -> ensure_root rest
+          | (seg, _) when String.Sub.is_empty seg -> None
+          | (_, rest) -> ensure_root rest
           end
       | '?' when seg1_len = 1 ->
           begin match parse_seg (String.Sub.tail rest) with
-          | None -> None
-          | Some (seg2, rest) ->
+          | (seg2, _) when String.Sub.is_empty seg2 -> None
+          | (seg2, rest) ->
               if (String.Sub.get_head ~rev:true seg2 = ':') (* \\?\drive:\ *)
               then (ensure_root rest) else
               if not (String.Sub.equal_bytes seg2 (String.sub "UNC"))
               then begin (* \\?\server\share\ *)
                 match parse_seg (String.Sub.tail rest) with
-                | None -> None
-                | Some (_, rest) -> ensure_root rest
+                | (seg, _) when String.Sub.is_empty seg -> None
+                | (_, rest) -> ensure_root rest
               end else begin (* \\?\UNC\server\share\ *)
                 match parse_seg (String.Sub.tail rest) with
-                | None -> None
-                | Some (_, rest) ->
+                | (seg, _) when String.Sub.is_empty seg -> None
+                | (_, rest) ->
                     match parse_seg (String.Sub.tail rest) with
-                    | None -> None
-                    | Some (_, rest) -> ensure_root rest
+                    | (seg, _) when String.Sub.is_empty seg -> None
+                    | (_, rest) -> ensure_root rest
               end
           end
       | _ -> (* \\server\share\ *)
           begin match parse_seg (String.Sub.tail rest) with
-          | None -> None
-          | Some (_, rest) -> ensure_root rest
+          | (seg, _) when String.Sub.is_empty seg -> None
+          | (_, rest) -> ensure_root rest
           end
 
 let of_string_windows p =
@@ -233,7 +233,7 @@ let split_volume_windows p =
   String.Sub.to_string vol, String.Sub.to_string path
 
 let split_volume_posix p =
-  if String.is_prefix "//" p then "/", String.with_pos_range ~start:1 p else
+  if String.is_prefix "//" p then "/", String.with_range ~first:1 p else
   "", p
 
 let split_volume = if windows then split_volume_windows else split_volume_posix
@@ -266,7 +266,7 @@ let filename_windows p = String.Sub.to_string (filename_sub_windows p)
 let filename_posix p =
   match String.find ~rev:true (Char.equal dir_sep_char) p with
   | None -> p
-  | Some i -> String.with_pos_range p ~start:(i + 1)
+  | Some i -> String.with_range p ~first:(i + 1)
 
 let filename = if windows then filename_windows else filename_posix
 
@@ -291,8 +291,8 @@ let base_posix p = match String.length p with
   let max = String.length p - 1 in
   let start = if p.[max] = dir_sep_char then max - 1 else max in
   match String.find ~rev:true ~start (Char.equal dir_sep_char) p with
-  | None -> if start = max then p else String.with_pos_range p ~stop:max
-  | Some i -> String.with_pos_range p ~start:(i + 1) ~stop:(start + 1)
+  | None -> if start = max then p else String.with_index_range p ~last:(max - 1)
+  | Some i -> String.with_index_range p ~first:(i + 1) ~last:start
 
 let base = if windows then base_windows else base_posix
 
@@ -348,7 +348,7 @@ let dir_to_file_posix p = match String.length p with
 | len ->
     let max = len - 1 in
     if p.[max] <> dir_sep_char then p else
-    String.with_pos_range p ~stop:max
+    String.with_index_range p ~last:(max - 1)
 
 let dir_to_file = if windows then dir_to_file_windows else dir_to_file_posix
 
@@ -430,7 +430,7 @@ let rem_prefix ~root p =
     if root.[root_len - 1] <> dir_sep_char then root_len + 1 else root_len
   in
   if start >= String.length p then Some cur_dir else
-  Some (String.with_pos_range p ~start)
+  Some (String.with_range p ~first:start)
 
 let normalize_segs segs =
   let rec loop acc = function
@@ -546,7 +546,7 @@ let add_ext e p =
 let rem_ext ?multi p =
   let ext = ext_sub ?multi (filename_sub p) in
   if String.Sub.is_empty ext then p else
-  String.with_pos_range p ~stop:(String.Sub.start_pos ext)
+  String.with_index_range p ~last:(String.Sub.start_pos ext - 1)
 
 let set_ext ?multi e p =
   if not (is_seg_valid e) then invalid_arg (err_invalid_ext e) else
@@ -564,7 +564,7 @@ let set_ext ?multi e p =
 let split_ext ?multi p =
   let ext = ext_sub ?multi (filename_sub p) in
   if String.Sub.is_empty ext then (p, "") else
-  (String.with_pos_range p ~stop:(String.Sub.start_pos ext),
+  (String.with_index_range p ~last:(String.Sub.start_pos ext - 1),
    String.Sub.to_string ext)
 
 let ( + ) p e = add_ext e p

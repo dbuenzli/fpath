@@ -296,6 +296,12 @@ let base_posix p = match String.length p with
 
 let base = if windows then base_windows else base_posix
 
+let is_dotfile p =
+  let b = base p in
+  match String.head b with
+  | Some '.' -> b <> cur_dir && b <> par_dir
+  | _ -> false
+
 let parent_windows p =
   let vol, path = sub_split_volume_windows p in
   let path =
@@ -491,7 +497,6 @@ let relativize ~root p =
           let p = rem_prefix p in
           let rel = List.fold_left (fun acc _ -> par_dir :: acc) [p] root in
           (Some (String.concat ~sep:dir_sep rel))
-
 
 (* File extensions *)
 

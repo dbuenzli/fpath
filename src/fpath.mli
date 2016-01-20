@@ -87,6 +87,10 @@ val is_rel : t -> bool
 val is_abs : t -> bool
 (** [is_abs p] is [true] iff [p] is an absolute path. *)
 
+val is_dotfile : t -> bool
+(** [is_dotfile p] is [true] iff [p]'s {!base} is not
+    {!cur_dir} or {!par_dir} and starts with a [.]. *)
+
 val is_prefix : root:t -> t -> bool
 (** [is_prefix ~root p] is [true] if [root] is a prefix of [p].  This
     checks that [root] has the same optional volume as [p], the same

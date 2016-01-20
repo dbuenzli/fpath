@@ -150,6 +150,22 @@ let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->
   end;
   ()
 
+let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
+  eq_bool (Fpath.is_dotfile (v ".")) false;
+  eq_bool (Fpath.is_dotfile (v "..")) false;
+  eq_bool (Fpath.is_dotfile (v "a/.")) false;
+  eq_bool (Fpath.is_dotfile (v "a/..")) false;
+  eq_bool (Fpath.is_dotfile (v "/a/.")) false;
+  eq_bool (Fpath.is_dotfile (v "/a/..")) false;
+  eq_bool (Fpath.is_dotfile (v "...")) true;
+  eq_bool (Fpath.is_dotfile (v ".../")) true;
+  eq_bool (Fpath.is_dotfile (v "a/...")) true;
+  eq_bool (Fpath.is_dotfile (v "a/.../")) true;
+  eq_bool (Fpath.is_dotfile (v "/a/...")) true;
+  eq_bool (Fpath.is_dotfile (v "/a/.../")) true;
+  eq_bool (Fpath.is_dotfile (v "/a/.../a")) false;
+  ()
+
 let is_prefix = test "Fpath.is_prefix" @@ fun () ->
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
@@ -664,6 +680,7 @@ let suite = suite "Fpath module"
       constants;
       is_seg_valid;
       is_abs_rel;
+      is_dotfile;
       is_prefix;
       split_volume;
       segs;

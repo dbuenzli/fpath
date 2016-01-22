@@ -267,10 +267,32 @@ let segs = test "Fpath.segs" @@ fun () ->
   end;
   ()
 
+let name = test "Fpath.name" @@ fun () ->
+  eq_str (Fpath.name @@ v "/a/b/") "b";
+  eq_str (Fpath.name @@ v "/a/b") "b";
+  eq_str (Fpath.name @@ v "a") "a";
+  eq_str (Fpath.name @@ v "a/") "a";
+  eq_str (Fpath.name @@ v "/") "";
+  if not windows then begin
+    eq_str (Fpath.name @@ v "//") "";
+    eq_str (Fpath.name @@ v "//a/b") "b";
+    eq_str (Fpath.name @@ v "//a/b/") "b";
+  end;
+  if windows then begin
+    eq_str (Fpath.name @@ v "\\\\server\\share\\a") "a";
+    eq_str (Fpath.name @@ v "\\\\server\\share\\a\\") "a";
+    eq_str (Fpath.name @@ v "\\\\.\\device\\") "";
+    eq_str (Fpath.name @@ v "\\\\.\\device\\a") "a";
+    eq_str (Fpath.name @@ v "C:\\") "";
+    eq_str (Fpath.name @@ v "C:a") "a";
+  end;
+  ()
+
 let filename = test "Fpath.filename" @@ fun () ->
   eq_str (Fpath.filename @@ v "/a/b/") "";
   eq_str (Fpath.filename @@ v "/a/b") "b";
   eq_str (Fpath.filename @@ v "a") "a";
+  eq_str (Fpath.filename @@ v "a/") "";
   eq_str (Fpath.filename @@ v "/") "";
   if not windows then begin
     eq_str (Fpath.filename @@ v "//") "";
@@ -684,6 +706,7 @@ let suite = suite "Fpath module"
       is_prefix;
       split_volume;
       segs;
+      name;
       filename;
       base;
       parent;

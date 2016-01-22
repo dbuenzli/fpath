@@ -295,6 +295,7 @@ let base_posix p = match String.length p with
   | Some i -> String.with_index_range p ~first:(i + 1) ~last:start
 
 let base = if windows then base_windows else base_posix
+let name p = filename (base p)
 
 let is_dotfile p =
   let b = base p in

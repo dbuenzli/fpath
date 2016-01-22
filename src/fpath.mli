@@ -141,13 +141,19 @@ val segs : t -> string list
     {- [to_string (snd (split_volume p)) = (String.concat ~sep:dir_sep
        (segs p))]}} *)
 
+val name : t -> string
+(** [name p] is the name of [p]. This is the last {e non-empty} segment of
+    [p] or the empty string if [p] is {!root}. See also {!filename} and
+    {!base}. {{!ex_name}Examples}. *)
+
 val filename : t -> string
-(** [filename p] is the filename of [p], that is the last segment of
-    [p]. {{!ex_filename}Examples}. *)
+(** [filename p] is the file name of [p]. This is the last segment of
+    [p]. If [p] is a directory path, this is the empty string. See
+    also {!name}. {{!ex_filename}Examples}. *)
 
 val base : t -> t
 (** [base p] is the path made of the last {e non-empty} segment of
-    [p] or [p] itself on root paths. {{!ex_base}Examples}. *)
+    [p] or [p] itself on root paths. See also {!name}. {{!ex_base}Examples}. *)
 
 val parent : t -> t
 (** [parent p] is the parent path of [p]. This is defined as [p] without
@@ -477,12 +483,24 @@ end
     {- [segs (v "C:a") = ["a"]] (Windows)}
     {- [segs (v "C:\\a") = ["";"a"]] (Windows)}}
 
+    {2:ex_name {!name}}
+
+    {ul
+    {- [name (v "/a/b/") = "b"]}
+    {- [name (v "/a/b") = "b"]}
+    {- [name (v "a") = "a"]}
+    {- [name (v "a/") = "a"]}
+    {- [name (v "/") = ""]}
+    {- [name (v "C:\\") = ""] (Windows)}
+    {- [name (v "C:a") = "a"] (Windows)}}
+
     {2:ex_filename {!filename}}
 
     {ul
     {- [filename (v "/a/b/") = ""]}
     {- [filename (v "/a/b") = "b"]}
     {- [filename (v "a") = "a"]}
+    {- [filename (v "a/") = ""]}
     {- [filename (v "/") = ""]}
     {- [filename (v "C:\\") = ""] (Windows)}
     {- [filename (v "C:a") = "a"] (Windows)}}

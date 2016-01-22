@@ -4,19 +4,19 @@
    %%NAME%% release %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(** File paths, file {{!file_exts}extensions}, path {{!Set}sets}
+(** File system paths, file {{!file_exts}extensions}, path {{!Set}sets}
     and {{!Map}maps}.
 
-    A file path specifies a file or a directory in a file hierarchy. A
-    file path has three parts, an optional platform-dependent
-    {{!split_volume}volume}, an optional root directory separator
-    {!dir_sep}, followed by a list of {!dir_sep} separated
-    segments. Segments are non empty strings except for maybe the last
-    one, the latter distinguishes directories (["/a/b/"]) from file
-    specifications (["/a/b"]).
+    A (file system) {e path} specifies a file or a directory in a file
+    hierarchy. A file path has three parts, an optional
+    platform-dependent {{!split_volume}volume}, an optional root
+    directory separator {!dir_sep}, followed by a list of {!dir_sep}
+    separated segments. Segments are non empty strings except for
+    maybe the last one, the latter distinguishes {e directory paths}
+    (["/a/b/"]) from {e file paths} (["/a/b"]).
 
-    A file path is {e absolute} if the optional root {!dir_sep} is
-    present and {e relative} otherwise.
+    A path is {e absolute} if the optional root {!dir_sep} is present
+    and {e relative} otherwise.
 
     Windows accepts both ['\\'] and ['/'] as directory separators.  On
     Windows ['/'] are converted to ['\\'] on the fly by the module and
@@ -29,7 +29,7 @@
 
     {e Release %%VERSION%% - %%MAINTAINER%% } *)
 
-(** {1:filepaths File paths} *)
+(** {1:paths Paths} *)
 
 val dir_sep : string
 (** [dir_sep] is the platform dependent path directory separator. *)

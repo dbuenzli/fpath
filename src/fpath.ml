@@ -106,6 +106,34 @@ let parse_unc_windows s =
           | (_, rest) -> ensure_root rest
           end
 
+let sub_split_volume_windows p =
+  (* splits a windows path into its volume (or drive) and actual file
+     path. When called the path in [p] is guaranteed to be non empty
+     and if [p] is an UNC path it is guaranteed to the be parseable by
+     parse_unc_windows. *)
+  let split_before i = String.sub p ~stop:i, String.sub p ~start:i in
+  if not (is_unc_path_windows p) then
+    begin match String.find (Char.equal ':') p with
+    | None -> String.Sub.empty, String.sub p
+    | Some i -> split_before (i + 1)
+    end
+  else
+  let bslash ~start = match String.find ~start (Char.equal '\\') p with
+  | None -> assert false | Some i -> i
+  in
+  let i = bslash ~start:2 in
+  let j = bslash ~start:(i + 1) in
+  match p.[i-1] with
+  | '.' when i = 3 -> split_before j
+  | '?' when i = 3 ->
+      if p.[j-1] = ':' then split_before j else
+      if (String.Sub.equal_bytes
+            (String.sub p ~start:(i + 1) ~stop:j)
+            (String.sub "UNC"))
+      then split_before (bslash ~start:((bslash ~start:(j + 1)) + 1))
+      else split_before (bslash ~start:(j + 1))
+  | _ -> split_before j
+
 let of_string_windows p =
   if p = "" then Some cur_dir else
   let p = String.map (fun c -> if c = '/' then '\\' else c) p in
@@ -184,6 +212,7 @@ let is_rel_windows p =
 
 let is_rel = if windows then is_rel_windows else is_rel_posix
 let is_abs p = not (is_rel p)
+
 let is_prefix ~root p =
   if not (String.is_prefix root p) then false else
   (* Further check the prefix is segment-based. If [root] ends with a
@@ -195,38 +224,19 @@ let is_prefix ~root p =
   if suff_start = String.length p then true else
   p.[suff_start] = dir_sep_char
 
+let is_root_posix p = String.equal p "/" || String.equal p "//"
+let is_root_windows =
+  let root_sub = String.sub "/" in
+  fun p ->
+    let _, p = sub_split_volume_windows p in
+    String.Sub.equal_bytes root_sub p
+
+let is_root = if windows then is_root_windows else is_root_posix
+
 let equal = String.equal
 let compare = String.compare
 
 (* Volume and segments *)
-
-let sub_split_volume_windows p =
-  (* splits a windows path into its volume (or drive) and actual file
-     path. When called the path in [p] is guaranteed to be non empty
-     and if [p] is an UNC path it is guaranteed to the be parseable by
-     parse_unc_windows. *)
-  let split_before i = String.sub p ~stop:i, String.sub p ~start:i in
-  if not (is_unc_path_windows p) then
-    begin match String.find (Char.equal ':') p with
-    | None -> String.Sub.empty, String.sub p
-    | Some i -> split_before (i + 1)
-    end
-  else
-  let bslash ~start = match String.find ~start (Char.equal '\\') p with
-  | None -> assert false | Some i -> i
-  in
-  let i = bslash ~start:2 in
-  let j = bslash ~start:(i + 1) in
-  match p.[i-1] with
-  | '.' when i = 3 -> split_before j
-  | '?' when i = 3 ->
-      if p.[j-1] = ':' then split_before j else
-      if (String.Sub.equal_bytes
-            (String.sub p ~start:(i + 1) ~stop:j)
-            (String.sub "UNC"))
-      then split_before (bslash ~start:((bslash ~start:(j + 1)) + 1))
-      else split_before (bslash ~start:(j + 1))
-  | _ -> split_before j
 
 let split_volume_windows p =
   let vol, path = sub_split_volume_windows p in

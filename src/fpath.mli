@@ -87,6 +87,10 @@ val is_rel : t -> bool
 val is_abs : t -> bool
 (** [is_abs p] is [true] iff [p] is an absolute path. *)
 
+val is_root : t -> bool
+(** [is_root p] determines if [p] is a root directory. This
+    {b not} the same as [equal p root]. {{!ex_is_root}Examples}. *)
+
 val is_dotfile : t -> bool
 (** [is_dotfile p] is [true] iff [p]'s {!base} is not
     {!cur_dir} or {!par_dir} and starts with a [.]. *)
@@ -454,6 +458,21 @@ end
     {- [equal (append (v "/a/b/") (v "/e/f")) (v "/e/f")]}
     {- [equal (append (v "a/b/") (v "e/f")) (v "a/b/e/f")]}
     {- [equal (append (v "a/b") (v "C:e")) (v "C:e")] (Windows)}}
+
+    {2:ex_is_root {!is_root}}
+    {ul
+    {- [is_root (v "//") = true]}
+    {- [is_root (v "/") = true]}
+    {- [is_root (v "/a") = false]}
+    {- [is_root (v "a") = false]}
+    {- [is_root (v ".") = false]}
+    {- [is_root (v "\\\\.\\dev\\") = true] (Windows)}
+    {- [is_root (v "\\\\.\\dev\\a") = false] (Windows)}
+    {- [is_root (v "\\\\server\\share\\") = true] (Windows)}
+    {- [is_root (v "\\\\server\\share\\a") = false] (Windows)}
+    {- [is_root (v "C:\\") = true] (Windows)}
+    {- [is_root (v "C:a") = false] (Windows)}
+    {- [is_root (v "C:\\a") = false] (Windows)}}
 
     {2:ex_is_prefix {!is_prefix}}
 

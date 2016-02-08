@@ -166,6 +166,24 @@ let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
   eq_bool (Fpath.is_dotfile (v "/a/.../a")) false;
   ()
 
+let is_root = test "Fpath.is_root" @@ fun () ->
+  eq_bool (Fpath.is_root (v "//")) true;
+  eq_bool (Fpath.is_root (v "/")) true;
+  eq_bool (Fpath.is_root (v "/a")) false;
+  eq_bool (Fpath.is_root (v "a")) false;
+  eq_bool (Fpath.is_root (v ".")) false;
+  eq_bool (Fpath.is_root (v "..")) false;
+  if windows then begin
+    eq_bool (Fpath.is_root (v "\\\\.\\dev\\")) true;
+    eq_bool (Fpath.is_root (v "\\\\.\\dev\\a")) false;
+    eq_bool (Fpath.is_root (v "\\\\server\\share\\")) true;
+    eq_bool (Fpath.is_root (v "\\\\server\\share\\a")) false;
+    eq_bool (Fpath.is_root (v "C:\\")) true;
+    eq_bool (Fpath.is_root (v "C:a")) false;
+    eq_bool (Fpath.is_root (v "C:\\a")) false;
+  end;
+  ()
+
 let is_prefix = test "Fpath.is_prefix" @@ fun () ->
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
@@ -703,6 +721,7 @@ let suite = suite "Fpath module"
       is_seg_valid;
       is_abs_rel;
       is_dotfile;
+      is_root;
       is_prefix;
       split_volume;
       segs;

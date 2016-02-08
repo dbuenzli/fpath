@@ -66,9 +66,6 @@ val ( // ) : t -> t -> t
 
 (** {1:cst Constants} *)
 
-val root : t
-(** [root] is [v "/"], the root absolute path. *)
-
 val cur_dir : t
 (** [cur_dir] is [v "."], the current directory. *)
 

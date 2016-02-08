@@ -27,7 +27,6 @@ let dir_sep_char = if windows then '\\' else '/'
 let dir_sep = String.of_char dir_sep_char
 let dir_sep_sub = String.sub dir_sep
 
-let root = dir_sep
 let par_dir = ".."
 let cur_dir = "."
 let cur_dir_sub = String.sub cur_dir
@@ -330,10 +329,10 @@ let parent_windows p =
   String.Sub.(to_string @@ concat [vol; par])
 
 let parent_posix p = match String.length p with
-| 1 -> if p.[0] = dir_sep_char then root else cur_dir
+| 1 -> if p.[0] = dir_sep_char then dir_sep else cur_dir
 | 2 ->
     if p.[0] <> dir_sep_char then cur_dir else
-    if p.[1] = dir_sep_char then "//" else root
+    if p.[1] = dir_sep_char then "//" else dir_sep
 | len ->
     let max = len - 1 in
     let stop = if p.[max] = dir_sep_char then max else len in
@@ -342,7 +341,7 @@ let parent_posix p = match String.length p with
     let dir = String.Sub.drop ~rev:true ~sat:not_sep sub in
     match String.Sub.length dir with
     | 0 -> cur_dir
-    | 1 -> root
+    | 1 -> dir_sep
     | 2 when p.[0] = dir_sep_char (* volume *) -> "//"
     | _ -> String.Sub.(to_string (tail ~rev:true dir))
 

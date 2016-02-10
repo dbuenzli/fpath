@@ -15,7 +15,7 @@ let of_string = test "Fpath.{v,of_string}" @@ fun () ->
   let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
   let some s = (Some (v s)) in
   eq (Fpath.of_string "/\x00") None;
-  eq (Fpath.of_string "/") (Some Fpath.root);
+  eq (Fpath.of_string "/") (Some (Fpath.v "/"));
   eq_bool (Fpath.equal (v "/") (v "/ ")) false;
   eq (Fpath.of_string "//") (if windows then None else some "//");
   eq (Fpath.of_string "/a/b/c") (some "/a/b/c");

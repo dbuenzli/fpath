@@ -26,9 +26,11 @@ let dir_sep_char = if windows then '\\' else '/'
 let dir_sep = String.of_char dir_sep_char
 let dir_sep_sub = String.sub dir_sep
 
-let par_dir = ".."
-let cur_dir = "."
-let cur_dir_sub = String.sub cur_dir
+let dotdot = ".."
+let dot = "."
+let dot_sub = String.sub dot
+let dot_dir = dot ^ dir_sep
+let dot_dir_sub = String.sub dot_dir
 
 let validate_and_collapse_seps p = try
   (* collapse non-initial sequences of [dir_sep] to a single one and checks
@@ -133,7 +135,7 @@ let sub_split_volume_windows p =
   | _ -> split_before j
 
 let of_string_windows p =
-  if p = "" then Some cur_dir else
+  if p = "" then Some dot else
   let p = String.map (fun c -> if c = '/' then '\\' else c) p in
   match validate_and_collapse_seps p with
   | None -> None
@@ -141,10 +143,10 @@ let of_string_windows p =
       if is_unc_path_windows p then parse_unc_windows p else
       match String.find (Char.equal ':') p with
       | None -> some
-      | Some i -> Some (if i = String.length p - 1 then p ^ cur_dir else p)
+      | Some i -> Some (if i = String.length p - 1 then p ^ dot else p)
 
 let of_string_posix p =
-  if p = "" then Some cur_dir else
+  if p = "" then Some dot else
   validate_and_collapse_seps p
 
 let of_string = if windows then of_string_windows else of_string_posix
@@ -222,23 +224,19 @@ let is_prefix ~root p =
   if suff_start = String.length p then true else
   p.[suff_start] = dir_sep_char
 
-let is_root_posix p = String.equal p "/" || String.equal p "//"
-let is_root_windows =
-  let root_sub = String.sub "\\" in
-  fun p ->
-    let _, p = sub_split_volume_windows p in
-    String.Sub.equal_bytes root_sub p
+let is_root_posix p = String.equal p dir_sep || String.equal p "//"
+let is_root_windows p =
+  let _, p = sub_split_volume_windows p in
+  String.Sub.equal_bytes dir_sep_sub p
 
 let is_root = if windows then is_root_windows else is_root_posix
 
-let is_current_dir_posix p = String.equal p "."  || String.equal p "./"
+let is_current_dir_posix p = String.equal p dot || String.equal p dot_dir
 let is_current_dir_windows =
-  let dot_sub = String.sub "." in
-  let dotbslash_sub = String.sub ".\\" in
   fun p ->
     let _, p = sub_split_volume_windows p in
     String.Sub.equal_bytes p dot_sub ||
-    String.Sub.equal_bytes p dotbslash_sub
+    String.Sub.equal_bytes p dot_dir_sub
 
 let is_current_dir =
   if windows then is_current_dir_windows else is_current_dir_posix
@@ -253,7 +251,7 @@ let split_volume_windows p =
   String.Sub.to_string vol, String.Sub.to_string path
 
 let split_volume_posix p =
-  if String.is_prefix "//" p then "/", String.with_range ~first:1 p else
+  if String.is_prefix "//" p then dir_sep, String.with_range ~first:1 p else
   "", p
 
 let split_volume = if windows then split_volume_windows else split_volume_posix
@@ -261,10 +259,10 @@ let split_volume = if windows then split_volume_windows else split_volume_posix
 let segs_windows p =
   let _, path = sub_split_volume_windows p in
   let path = String.Sub.to_string path in
-  String.cuts ~sep:"\\" path
+  String.cuts ~sep:dir_sep path
 
 let segs_posix p =
-  let segs = String.cuts ~sep:"/" p in
+  let segs = String.cuts ~sep:dir_sep p in
   if String.is_prefix "//" p then List.tl segs else segs
 
 let segs = if windows then segs_windows else segs_posix
@@ -320,7 +318,7 @@ let name p = filename (base p)
 let is_dotfile p =
   let b = base p in
   match String.head b with
-  | Some '.' -> b <> cur_dir && b <> par_dir
+  | Some '.' -> b <> dot && b <> dotdot
   | _ -> false
 
 let parent_windows p =
@@ -333,16 +331,16 @@ let parent_windows p =
   let not_sep c = c <> dir_sep_char in
   let par = String.Sub.drop ~rev:true ~sat:not_sep path in
   let par = match String.Sub.length par with
-  | 0 -> cur_dir_sub
+  | 0 -> dot_sub
   | 1 -> par (* root *)
   | _ -> String.Sub.tail ~rev:true par
   in
   String.Sub.(to_string @@ concat [vol; par])
 
 let parent_posix p = match String.length p with
-| 1 -> if p.[0] = dir_sep_char then dir_sep else cur_dir
+| 1 -> if p.[0] = dir_sep_char then dir_sep else dot
 | 2 ->
-    if p.[0] <> dir_sep_char then cur_dir else
+    if p.[0] <> dir_sep_char then dot else
     if p.[1] = dir_sep_char then "//" else dir_sep
 | len ->
     let max = len - 1 in
@@ -351,7 +349,7 @@ let parent_posix p = match String.length p with
     let not_sep c = c <> dir_sep_char in
     let dir = String.Sub.drop ~rev:true ~sat:not_sep sub in
     match String.Sub.length dir with
-    | 0 -> cur_dir
+    | 0 -> dot
     | 1 -> dir_sep
     | 2 when p.[0] = dir_sep_char (* volume *) -> "//"
     | _ -> String.Sub.(to_string (tail ~rev:true dir))
@@ -388,7 +386,7 @@ let find_prefix_windows p0 p1 =
   | 0 ->
       if String.Sub.get_head ps0 <> dir_sep_char &&
          String.Sub.get_head ps1 <> dir_sep_char
-      then Some (String.Sub.(to_string (concat [v0; cur_dir_sub]))) else
+      then Some (String.Sub.(to_string (concat [v0; dot_sub]))) else
       None
   | _ ->
       Some (String.Sub.(to_string (extend ~rev:true s)))
@@ -417,7 +415,7 @@ let find_prefix_posix p0 p1 =
   let prefix s = match String.Sub.length s with
   | 0 ->
       if p0.[0] <> dir_sep_char && p1.[0] <> dir_sep_char
-      then Some cur_dir else None
+      then Some dot else None
   | 1 ->
       (* watch out for // *)
       let p0_len = String.length p0 in
@@ -456,7 +454,7 @@ let rem_prefix ~root p =
   let start =
     if root.[root_len - 1] <> dir_sep_char then root_len + 1 else root_len
   in
-  if start >= String.length p then Some cur_dir else
+  if start >= String.length p then Some dot else
   Some (String.with_range p ~first:start)
 
 let normalize_segs segs =
@@ -516,7 +514,7 @@ let relativize ~root p =
       | "." :: [] -> Some (rem_prefix p)
       | root ->
           let p = rem_prefix p in
-          let rel = List.fold_left (fun acc _ -> par_dir :: acc) [p] root in
+          let rel = List.fold_left (fun acc _ -> dotdot :: acc) [p] root in
           (Some (String.concat ~sep:dir_sep rel))
 
 (* File extensions *)

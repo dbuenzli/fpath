@@ -82,6 +82,10 @@ let add_seg = test "Fpath.add_seg" @@ fun () ->
   eqp (Fpath.add_seg (v "/a/b") "e") (v "/a/b/e");
   eqp (Fpath.add_seg (v "/") "") (v "/");
   eqp (Fpath.add_seg (v "/") "a") (v "/a");
+  eqp (Fpath.add_seg (v ".") "a") (v "./a");
+  eqp (Fpath.add_seg (v ".") "") (v "./");
+  eqp (Fpath.add_seg (v "..") "a") (v "../a");
+  eqp (Fpath.add_seg (v "..") "") (v "../");
   ()
 
 let append = test "Fpath.append" @@ fun () ->

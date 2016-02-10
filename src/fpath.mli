@@ -42,7 +42,7 @@ val v : string -> t
 
     @raise Invalid_argument if {!of_string}[ p] is [None]. This is for
     strings known to be valid paths, use {!of_string} to deal with
-    errors. *)
+    user input (and hence errors). *)
 
 val add_seg : t -> string -> t
 (** [add_seg p seg] adds [seg] at the end of [p]. An empty [seg]
@@ -445,7 +445,11 @@ end
     {- [equal (add_seg (v "/a/b") "") (v "/a/b/")]}
     {- [equal (add_seg (v "/a/b/") "") (v "/a/b/")]}
     {- [equal (add_seg (v "/") "") (v "/")]}
-    {- [equal (add_seg (v "/") "a") (v "/a")]}}
+    {- [equal (add_seg (v "/") "a") (v "/a")]}
+    {- [equal (add_seg (v ".") "") (v "./")]}
+    {- [equal (add_seg (v ".") "a") (v "./a")]}
+    {- [equal (add_seg (v "..") "") (v "../")]}
+    {- [equal (add_seg (v "..") "a") (v "../a")]}}
 
     {2:ex_append {!append}}
 

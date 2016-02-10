@@ -224,7 +224,7 @@ let is_prefix ~root p =
 
 let is_root_posix p = String.equal p "/" || String.equal p "//"
 let is_root_windows =
-  let root_sub = String.sub "/" in
+  let root_sub = String.sub "\\" in
   fun p ->
     let _, p = sub_split_volume_windows p in
     String.Sub.equal_bytes root_sub p

@@ -12,7 +12,6 @@ open Astring
 
 let bytes_unsafe_set = Bytes.unsafe_set
 let string_unsafe_get = String.unsafe_get
-let string_sub_unsafe_get = String.Sub.unsafe_get
 
 (* Errors *)
 

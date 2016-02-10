@@ -64,14 +64,6 @@ val ( / ) : t -> string -> t
 val ( // ) : t -> t -> t
 (** [p // p'] is {!append}[ p p']. Left associative. *)
 
-(** {1:cst Constants} *)
-
-val cur_dir : t
-(** [cur_dir] is [v "."], the current directory. *)
-
-val par_dir : t
-(** [par_dir] is [v ".."], the parent directory. *)
-
 (** {1:predicates Predicates and comparison} *)
 
 val is_seg_valid : string -> bool
@@ -90,7 +82,7 @@ val is_root : t -> bool
 
 val is_dotfile : t -> bool
 (** [is_dotfile p] is [true] iff [p]'s {!base} is not
-    {!cur_dir} or {!par_dir} and starts with a [.]. *)
+    [.] or [..] and starts with a [.]. *)
 
 val is_prefix : root:t -> t -> bool
 (** [is_prefix ~root p] is [true] if [root] is a prefix of [p].  This
@@ -159,7 +151,7 @@ val base : t -> t
 val parent : t -> t
 (** [parent p] is the parent path of [p]. This is defined as [p] without
     its last {e non-empty} segment or [p] if there is no such segment
-    or {!cur_dir} for a single segment relative path.
+    or [.] for a single segment relative path.
     {{!ex_parent}Examples}. *)
 
 val file_to_dir : t -> t
@@ -192,9 +184,9 @@ val rem_prefix : root:t -> t -> t option
 val normalize : t -> t
 (** [normalize p] normalizes [p] to a path referring to the same
     {{!dir_to_file}file} without consulting the filesystem. If [p]
-    is absolute the resulting path has no {!cur_dir} and {!par_dir}
-    segments. If [p] is relative it has no {!cur_dir} and may only
-    have potential {!par_dir} as initial segments. Note that except
+    is absolute the resulting path has no [.] and [..]
+    segments. If [p] is relative it has no [.] and may only
+    have potential [..] as initial segments. Note that except
     if the path is a root, the path never has a trailing directory
     separator. {{!ex_normalize}Examples}. *)
 
@@ -237,7 +229,7 @@ val of_string : string -> t option
        any processing occurs.}
     {- Non-initial empty segments are suppressed;
        ["a//b"] becomes ["a/b"], ["//a////b//"] becomes ["//a/b/"], etc.}
-    {- Empty relative paths are converted to {!cur_dir}. For example
+    {- Empty relative paths are converted to [.]. For example
        [""] becomes ["."], ["C:"] becomes ["C:."], etc.}
     {- On Windows empty absolute UNC paths are completed to
        their root. For example ["\\\\server\\share"] becomes

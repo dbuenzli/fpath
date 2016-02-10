@@ -110,8 +110,6 @@ let append = test "Fpath.append" @@ fun () ->
 
 let constants = test "Constants" @@ fun () ->
   eq_str Fpath.dir_sep (if windows then "\\" else "/");
-  eqp Fpath.cur_dir (v ".");
-  eqp Fpath.par_dir (v "..");
   ()
 
 let is_seg_valid = test "Fpath.is_seg_valid" @@ fun () ->

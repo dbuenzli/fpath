@@ -80,6 +80,14 @@ val is_root : t -> bool
 (** [is_root p] determines if [p] is a root directory. This
     {b not} the same as [equal p root]. {{!ex_is_root}Examples}. *)
 
+val is_current_dir : t -> bool
+(** [is_current_dir p] is true iff [p] is the current relative directory,
+    i.e. either ["."] or ["./"]. {{!ex_is_current_dir}Examples}.
+
+    {b Warning.} This is is a syntactic test and will return [false],
+    e.g. on ["./a/.."]. {!normalize} the path before testing to avoid
+    this problem. *)
+
 val is_dotfile : t -> bool
 (** [is_dotfile p] is [true] iff [p]'s {!base} is not
     [.] or [..] and starts with a [.]. *)
@@ -466,6 +474,20 @@ end
     {- [is_root (v "C:\\") = true] (Windows)}
     {- [is_root (v "C:a") = false] (Windows)}
     {- [is_root (v "C:\\a") = false] (Windows)}}
+
+    {2:ex_is_current_dir {!is_current_dir}}
+    {ul
+    {- [is_current_dir (v ".") = true]}
+    {- [is_current_dir (v "./") = true]}
+    {- [is_current_dir (v "./a/..") = false]}
+    {- [is_current_dir (v "/.") = false]}
+    {- [is_current_dir (v "\\\\.\\dev\\.") = false] (Windows)}
+    {- [is_current_dir (v "\\\\.\\dev\\.\\") = false] (Windows)}
+    {- [is_current_dir (v "\\\\server\\share\\.") = false] (Windows)}
+    {- [is_current_dir (v "\\\\server\\share\\.\\") = false] (Windows)}
+    {- [is_current_dir (v "C:.") = true] (Windows)}
+    {- [is_current_dir (v "C:./") = true] (Windows)}
+    {- [is_current_dir (v "C:./a/..") = false] (Windows)}}
 
     {2:ex_is_prefix {!is_prefix}}
 

@@ -231,6 +231,18 @@ let is_root_windows =
 
 let is_root = if windows then is_root_windows else is_root_posix
 
+let is_current_dir_posix p = String.equal p "."  || String.equal p "./"
+let is_current_dir_windows =
+  let dot_sub = String.sub "." in
+  let dotbslash_sub = String.sub ".\\" in
+  fun p ->
+    let _, p = sub_split_volume_windows p in
+    String.Sub.equal_bytes p dot_sub ||
+    String.Sub.equal_bytes p dotbslash_sub
+
+let is_current_dir =
+  if windows then is_current_dir_windows else is_current_dir_posix
+
 let equal = String.equal
 let compare = String.compare
 

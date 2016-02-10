@@ -186,6 +186,22 @@ let is_root = test "Fpath.is_root" @@ fun () ->
   end;
   ()
 
+let is_current_dir = test "Fpath.is_current_dir" @@ fun () ->
+  eq_bool (Fpath.is_current_dir (v ".")) true;
+  eq_bool (Fpath.is_current_dir (v "./")) true;
+  eq_bool (Fpath.is_current_dir (v "./a/..")) false;
+  eq_bool (Fpath.is_current_dir (v "/.")) false;
+  if windows then begin
+    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.\\")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.\\")) false;
+    eq_bool (Fpath.is_current_dir (v "C:.")) true;
+    eq_bool (Fpath.is_current_dir (v "C:./")) true;
+    eq_bool (Fpath.is_current_dir (v "C:./a/..")) false;
+  end;
+  ()
+
 let is_prefix = test "Fpath.is_prefix" @@ fun () ->
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
@@ -714,7 +730,6 @@ let split_ext = test "Fpath.split_ext" @@ fun () ->
   eq_split ~multi:true "f.tar.gz" "f" ".tar.gz";
   ()
 
-
 let suite = suite "Fpath module"
     [ of_string;
       add_seg;
@@ -724,6 +739,7 @@ let suite = suite "Fpath module"
       is_abs_rel;
       is_dotfile;
       is_root;
+      is_current_dir;
       is_prefix;
       split_volume;
       segs;

@@ -20,12 +20,12 @@ let of_string = test "Fpath.{v,of_string}" @@ fun () ->
   eq (Fpath.of_string "//") (if windows then None else some "//");
   eq (Fpath.of_string "/a/b/c") (some "/a/b/c");
   eq_bool (Fpath.equal (v "/a/b/c/") (v "/a/b/c")) false;
-  eq (Fpath.of_string "") (some "."); (* no empty path *)
+  eq (Fpath.of_string "") (some "./"); (* no empty path *)
   eq (Fpath.of_string "a///b///////c///") (some "a/b/c/"); (* seg collapse *)
   eq (Fpath.of_string "a///b///////c") (some "a/b/c"); (* seg collapse *)
   if windows then begin
     eq (Fpath.of_string "C:\x00") None;
-    eq (Fpath.of_string "C:") (some "C:."); (* no empty path *)
+    eq (Fpath.of_string "C:") (some "C:./"); (* no empty path *)
     eq (Fpath.of_string "C:\\") (some "C:\\");
     eq (Fpath.of_string "C:rel") (some "C:rel");
     eq (Fpath.of_string "\\\\") None;

@@ -237,8 +237,8 @@ val of_string : string -> t option
        any processing occurs.}
     {- Non-initial empty segments are suppressed;
        ["a//b"] becomes ["a/b"], ["//a////b//"] becomes ["//a/b/"], etc.}
-    {- Empty relative paths are converted to [.]. For example
-       [""] becomes ["."], ["C:"] becomes ["C:."], etc.}
+    {- Empty relative paths are converted to [./]. For example
+       [""] becomes ["./"], ["C:"] becomes ["C:./"], etc.}
     {- On Windows empty absolute UNC paths are completed to
        their root. For example ["\\\\server\\share"] becomes
        ["\\\\server\\share\\"],

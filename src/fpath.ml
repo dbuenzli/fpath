@@ -135,7 +135,7 @@ let sub_split_volume_windows p =
   | _ -> split_before j
 
 let of_string_windows p =
-  if p = "" then Some dot else
+  if p = "" then Some dot_dir else
   let p = String.map (fun c -> if c = '/' then '\\' else c) p in
   match validate_and_collapse_seps p with
   | None -> None
@@ -143,10 +143,10 @@ let of_string_windows p =
       if is_unc_path_windows p then parse_unc_windows p else
       match String.find (Char.equal ':') p with
       | None -> some
-      | Some i -> Some (if i = String.length p - 1 then p ^ dot else p)
+      | Some i -> Some (if i = String.length p - 1 then p ^ dot_dir else p)
 
 let of_string_posix p =
-  if p = "" then Some dot else
+  if p = "" then Some dot_dir else
   validate_and_collapse_seps p
 
 let of_string = if windows then of_string_windows else of_string_posix

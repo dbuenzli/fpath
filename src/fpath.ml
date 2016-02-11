@@ -26,11 +26,12 @@ let dir_sep_char = if windows then '\\' else '/'
 let dir_sep = String.of_char dir_sep_char
 let dir_sep_sub = String.sub dir_sep
 
-let dotdot = ".."
 let dot = "."
 let dot_sub = String.sub dot
 let dot_dir = dot ^ dir_sep
 let dot_dir_sub = String.sub dot_dir
+let dotdot = ".."
+let dotdot_sub = String.sub dotdot
 
 let validate_and_collapse_seps p = try
   (* collapse non-initial sequences of [dir_sep] to a single one and checks
@@ -134,6 +135,20 @@ let sub_split_volume_windows p =
       else split_before (bslash ~start:(j + 1))
   | _ -> split_before j
 
+let sub_last_seg_windows p =
+  let _, path = sub_split_volume_windows p in
+  match String.Sub.find ~rev:true (Char.equal dir_sep_char) path with
+  | None -> path
+  | Some c -> String.Sub.(extend (stop c))
+
+let sub_last_seg_posix p =
+  let p = String.sub p in
+  match String.Sub.find ~rev:true (Char.equal dir_sep_char) p with
+  | None -> p
+  | Some c -> String.Sub.(extend (stop c))
+
+let sub_last_seg = if windows then sub_last_seg_windows else sub_last_seg_posix
+
 let of_string_windows p =
   if p = "" then Some dot_dir else
   let p = String.map (fun c -> if c = '/' then '\\' else c) p in
@@ -223,47 +238,19 @@ let segs = if windows then segs_windows else segs_posix
 
 (* File and directory paths *)
 
-let filename_sub_windows p =
-  let _, path = sub_split_volume_windows p in
-  match String.Sub.find ~rev:true (Char.equal dir_sep_char) path with
-  | None -> path
-  | Some c -> String.Sub.(extend (stop c))
+let is_dir_path p =
+  let seg = sub_last_seg p in
+  String.Sub.is_empty seg ||
+  String.Sub.equal_bytes seg dot_sub ||
+  String.Sub.equal_bytes seg dotdot_sub
 
-let filename_sub_posix p =
-  match String.find ~rev:true (Char.equal dir_sep_char) p with
-  | None -> String.sub p
-  | Some i -> String.sub p ~start:(i + 1)
+let is_file_path p = not (is_dir_path p)
 
-let filename_sub = if windows then filename_sub_windows else filename_sub_posix
+let to_dir_path p = add_seg p ""
 
-let filename_windows p = String.Sub.to_string (filename_sub_windows p)
-let filename_posix p =
-  match String.find ~rev:true (Char.equal dir_sep_char) p with
-  | None -> p
-  | Some i -> String.with_range p ~first:(i + 1)
-
-let filename = if windows then filename_windows else filename_posix
-
-let file_to_dir p = add_seg p ""
-
-let dir_to_file_windows p =
-  let vol, path = sub_split_volume_windows p in
-  if String.Sub.length path = 1 then p else
-  if String.Sub.get_head ~rev:true path <> dir_sep_char then p else
-  String.Sub.(to_string (concat [vol; String.Sub.tail ~rev:true path]))
-
-let dir_to_file_posix p = match String.length p with
-| 1 -> p
-| 2 ->
-    if p.[0] <> dir_sep_char && p.[1] = dir_sep_char
-    then String.of_char p.[0]
-    else p
-| len ->
-    let max = len - 1 in
-    if p.[max] <> dir_sep_char then p else
-    String.with_index_range p ~last:(max - 1)
-
-let dir_to_file = if windows then dir_to_file_windows else dir_to_file_posix
+let filename p = match String.Sub.to_string (sub_last_seg p) with
+| "" | "." | ".." -> ""
+| filename -> filename
 
 (* Base and parent paths *)
 
@@ -330,6 +317,26 @@ let parent_posix p = match String.length p with
 let parent = if windows then parent_windows else parent_posix
 
 (* Normalization and prefixes *)
+
+let rem_empty_seg_windows p =
+  let vol, path = sub_split_volume_windows p in
+  if String.Sub.length path = 1 then p else
+  if String.Sub.get_head ~rev:true path <> dir_sep_char then p else
+  String.Sub.(to_string (concat [vol; String.Sub.tail ~rev:true path]))
+
+let rem_empty_seg_posix p = match String.length p with
+| 1 -> p
+| 2 ->
+    if p.[0] <> dir_sep_char && p.[1] = dir_sep_char
+    then String.of_char p.[0]
+    else p
+| len ->
+    let max = len - 1 in
+    if p.[max] <> dir_sep_char then p else
+    String.with_index_range p ~last:(max - 1)
+
+let rem_empty_seg =
+  if windows then rem_empty_seg_windows else rem_empty_seg_posix
 
 let is_prefix ~root p =
   if not (String.is_prefix root p) then false else
@@ -543,6 +550,19 @@ let single_ext_sub seg =
 
 let ext_sub ?(multi = false) seg =
   if multi then multi_ext_sub seg else single_ext_sub seg
+
+let filename_sub_windows p =
+  let _, path = sub_split_volume_windows p in
+  match String.Sub.find ~rev:true (Char.equal dir_sep_char) path with
+  | None -> path
+  | Some c -> String.Sub.(extend (stop c))
+
+let filename_sub_posix p =
+  match String.find ~rev:true (Char.equal dir_sep_char) p with
+  | None -> String.sub p
+  | Some i -> String.sub p ~start:(i + 1)
+
+let filename_sub = if windows then filename_sub_windows else filename_sub_posix
 
 let get_ext ?multi p = String.Sub.to_string (ext_sub ?multi (filename_sub p))
 

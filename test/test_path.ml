@@ -201,7 +201,78 @@ let segs = test "Fpath.segs" @@ fun () ->
   end;
   ()
 
+let is_dir_path = test "Fpath.is_dir_path" @@ fun () ->
+  eq_bool (Fpath.is_dir_path (v ".")) true;
+  eq_bool (Fpath.is_dir_path (v "..")) true;
+  eq_bool (Fpath.is_dir_path (v "../")) true;
+  eq_bool (Fpath.is_dir_path (v "/a/b/")) true;
+  eq_bool (Fpath.is_dir_path (v "/a/b")) false;
+  eq_bool (Fpath.is_dir_path (v "a/")) true;
+  eq_bool (Fpath.is_dir_path (v "a")) false;
+  eq_bool (Fpath.is_dir_path (v "a/.")) true;
+  eq_bool (Fpath.is_dir_path (v "a/..")) true;
+  eq_bool (Fpath.is_dir_path (v "a/..b")) false;
+  eq_bool (Fpath.is_dir_path (v "/")) true;
+  if windows then begin
+    eq_bool (Fpath.is_dir_path (v "C:\\")) true;
+    eq_bool (Fpath.is_dir_path (v "C:a")) false;
+  end;
+  ()
+
+let is_file_path = test "Fpath.is_file_path" @@ fun () ->
+  eq_bool (Fpath.is_file_path (v ".")) false;
+  eq_bool (Fpath.is_file_path (v "..")) false;
+  eq_bool (Fpath.is_file_path (v "../")) false;
+  eq_bool (Fpath.is_file_path (v "/a/b/")) false;
+  eq_bool (Fpath.is_file_path (v "/a/b")) true;
+  eq_bool (Fpath.is_file_path (v "a/")) false;
+  eq_bool (Fpath.is_file_path (v "a")) true;
+  eq_bool (Fpath.is_file_path (v "a/.")) false;
+  eq_bool (Fpath.is_file_path (v "a/..")) false;
+  eq_bool (Fpath.is_file_path (v "a/..b")) true;
+  eq_bool (Fpath.is_file_path (v "/")) false;
+  if windows then begin
+    eq_bool (Fpath.is_file_path (v "C:\\")) false;
+    eq_bool (Fpath.is_file_path (v "C:a")) true;
+  end;
+  ()
+
+let to_dir_path = test "Fpath.to_dir_path" @@ fun () ->
+  eqp (Fpath.to_dir_path @@ v ".") (v "./");
+  eqp (Fpath.to_dir_path @@ v "..") (v "../");
+  eqp (Fpath.to_dir_path @@ v "../") (v "../");
+  eqp (Fpath.to_dir_path @@ v "/a/b/") (v "/a/b/");
+  eqp (Fpath.to_dir_path @@ v "/a/b") (v "/a/b/");
+  eqp (Fpath.to_dir_path @@ v "a/") (v "a/");
+  eqp (Fpath.to_dir_path @@ v "a") (v "a/");
+  eqp (Fpath.to_dir_path @@ v "a/.") (v "a/./");
+  eqp (Fpath.to_dir_path @@ v "a/..") (v "a/../");
+  eqp (Fpath.to_dir_path @@ v "a/..b") (v "a/..b/");
+  eqp (Fpath.to_dir_path @@ v "/") (v "/");
+  if not windows then begin
+    eqp (Fpath.to_dir_path @@ v "//") (v "//");
+    eqp (Fpath.to_dir_path @@ v "//a") (v "//a/");
+  end;
+  if windows then begin
+    eqp (Fpath.to_dir_path @@
+         v "\\\\server\\share\\") (v "\\\\server\\share\\");
+    eqp (Fpath.to_dir_path @@ v "C:a") (v "C:a/");
+    eqp (Fpath.to_dir_path @@ v "C:\\") (v "C:\\");
+  end;
+  ()
+
 let filename = test "Fpath.filename" @@ fun () ->
+  eq_str (Fpath.filename @@ v ".") "";
+  eq_str (Fpath.filename @@ v "..") "";
+  eq_str (Fpath.filename @@ v "../") "";
+  eq_str (Fpath.filename @@ v "/a/b/") "";
+  eq_str (Fpath.filename @@ v "/a/b") "b";
+  eq_str (Fpath.filename @@ v "a/") "";
+  eq_str (Fpath.filename @@ v "a") "a";
+  eq_str (Fpath.filename @@ v "a/.") "";
+  eq_str (Fpath.filename @@ v "a/..") "";
+  eq_str (Fpath.filename @@ v "a/..b") "..b";
+  eq_str (Fpath.filename @@ v "/") "";
   eq_str (Fpath.filename @@ v "/a/b/") "";
   eq_str (Fpath.filename @@ v "/a/b") "b";
   eq_str (Fpath.filename @@ v "a") "a";
@@ -209,6 +280,7 @@ let filename = test "Fpath.filename" @@ fun () ->
   eq_str (Fpath.filename @@ v "/") "";
   if not windows then begin
     eq_str (Fpath.filename @@ v "//") "";
+    eq_str (Fpath.filename @@ v "//..") "";
     eq_str (Fpath.filename @@ v "//a/b") "b";
     eq_str (Fpath.filename @@ v "//a/b/") "";
   end;
@@ -218,44 +290,6 @@ let filename = test "Fpath.filename" @@ fun () ->
     eq_str (Fpath.filename @@ v "\\\\.\\device\\a") "a";
     eq_str (Fpath.filename @@ v "C:\\") "";
     eq_str (Fpath.filename @@ v "C:a") "a";
-  end;
-  ()
-
-let file_to_dir = test "Fpath.file_to_dir" @@ fun () ->
-  eqp (Fpath.file_to_dir @@ v "/a/b") (v "/a/b/");
-  eqp (Fpath.file_to_dir @@ v "/a/b/") (v "/a/b/");
-  eqp (Fpath.file_to_dir @@ v "a") (v "a/");
-  eqp (Fpath.file_to_dir @@ v "a/") (v "a/");
-  eqp (Fpath.file_to_dir @@ v "/") (v "/");
-  if not windows then begin
-    eqp (Fpath.file_to_dir @@ v "//") (v "//");
-    eqp (Fpath.file_to_dir @@ v "//a") (v "//a/");
-  end;
-  if windows then begin
-    eqp (Fpath.file_to_dir @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
-    eqp (Fpath.file_to_dir @@ v "C:a") (v "C:a/");
-    eqp (Fpath.file_to_dir @@ v "C:\\") (v "C:\\");
-  end;
-  ()
-
-let dir_to_file = test "Fpath.dir_to_file" @@ fun () ->
-  eqp (Fpath.dir_to_file @@ v "/a/b") (v "/a/b");
-  eqp (Fpath.dir_to_file @@ v "/a/b/") (v "/a/b");
-  eqp (Fpath.dir_to_file @@ v "a") (v "a");
-  eqp (Fpath.dir_to_file @@ v "a/") (v "a");
-  eqp (Fpath.dir_to_file @@ v "/") (v "/");
-  if not windows then begin
-    eqp (Fpath.dir_to_file @@ v "//") (v "//");
-    eqp (Fpath.dir_to_file @@ v "//a") (v "//a");
-    eqp (Fpath.dir_to_file @@ v "//a/") (v "//a");
-  end;
-  if windows then begin
-    eqp (Fpath.dir_to_file @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
-    eqp (Fpath.dir_to_file @@ v "\\\\server\\share\\a\\")
-      (v "\\\\server\\share\\a");
-    eqp (Fpath.dir_to_file @@ v "C:a") (v "C:a");
-    eqp (Fpath.dir_to_file @@ v "C:a/") (v "C:a");
-    eqp (Fpath.dir_to_file @@ v "C:\\") (v "C:\\");
   end;
   ()
 
@@ -334,6 +368,61 @@ let parent = test "Fpath.parent" @@ fun () ->
   end;
   ()
 
+let rem_empty_seg = test "Fpath.rem_empty_seg" @@ fun () ->
+  eqp (Fpath.rem_empty_seg @@ v "/a/b") (v "/a/b");
+  eqp (Fpath.rem_empty_seg @@ v "/a/b/") (v "/a/b");
+  eqp (Fpath.rem_empty_seg @@ v "a") (v "a");
+  eqp (Fpath.rem_empty_seg @@ v "a/") (v "a");
+  eqp (Fpath.rem_empty_seg @@ v "/") (v "/");
+  if not windows then begin
+    eqp (Fpath.rem_empty_seg @@ v "//") (v "//");
+    eqp (Fpath.rem_empty_seg @@ v "//a") (v "//a");
+    eqp (Fpath.rem_empty_seg @@ v "//a/") (v "//a");
+  end;
+  if windows then begin
+    eqp (Fpath.rem_empty_seg @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
+    eqp (Fpath.rem_empty_seg @@ v "\\\\server\\share\\a\\")
+      (v "\\\\server\\share\\a");
+    eqp (Fpath.rem_empty_seg @@ v "C:a") (v "C:a");
+    eqp (Fpath.rem_empty_seg @@ v "C:a/") (v "C:a");
+    eqp (Fpath.rem_empty_seg @@ v "C:\\") (v "C:\\");
+  end;
+  ()
+
+let normalize = test "Fpath.normalize" @@ fun () ->
+  eqp (Fpath.normalize (v ".")) (v ".");
+  eqp (Fpath.normalize (v "././.")) (v ".");
+  eqp (Fpath.normalize (v "./././")) (v ".");
+  eqp (Fpath.normalize (v "./a/..")) (v ".");
+  eqp (Fpath.normalize (v "./a/../")) (v ".");
+  eqp (Fpath.normalize (v "..")) (v "..");
+  eqp (Fpath.normalize (v "../../../a")) (v "../../../a");
+  eqp (Fpath.normalize (v "../../../a/")) (v "../../../a");
+  eqp (Fpath.normalize (v "/")) (v "/");
+  eqp (Fpath.normalize (v "/.")) (v "/");
+  eqp (Fpath.normalize (v "/..")) (v "/");
+  eqp (Fpath.normalize (v "/./../../.")) (v "/");
+  eqp (Fpath.normalize (v "/./../../.")) (v "/");
+  eqp (Fpath.normalize (v "../../a/..")) (v "../..");
+  eqp (Fpath.normalize (v "../../a/../.")) (v "../..");
+  eqp (Fpath.normalize (v "../../a/.././..")) (v "../../..");
+  eqp (Fpath.normalize (v "../../a/../..")) (v "../../..");
+  eqp (Fpath.normalize (v "/a/b/c/./../../g")) (v "/a/g");
+  eqp (Fpath.normalize (v "./a/b/c/./../../g")) (v "a/g");
+  eqp (Fpath.normalize (v "./a/b/c/./../../g/")) (v "a/g");
+  eqp (Fpath.normalize (v "a/b/c/./../../g")) (v "a/g");
+  eqp (Fpath.normalize (v "a/b/c/./../../g/")) (v "a/g");
+  if not windows then begin
+    eqp (Fpath.normalize (v "//a/b/c/./../../g")) (v "//a/g");
+  end;
+  if windows then begin
+    eqp (Fpath.normalize (v "C:/a/b/c/./../../g")) (v "C:/a/g");
+    eqp (Fpath.normalize (v "C:/a/b/c/./../../g")) (v "C:/a/g");
+    eqp (Fpath.normalize (v "\\\\?\\UNC\\server\\share\\.."))
+           (v "\\\\?\\UNC\\server\\share\\");
+  end;
+  ()
+
 let is_prefix = test "Fpath.is_prefix" @@ fun () ->
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
@@ -408,40 +497,6 @@ let rem_prefix = test "Fpath.rem_prefix" @@ fun () ->
   eq (Fpath.rem_prefix (v "/a/b") (v "/a/b/c")) (Some (v "c"));
   eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b/c")) (Some (v "c"));
   eq (Fpath.rem_prefix (v "a") (v "a/b/c")) (Some (v "b/c"));
-  ()
-
-let normalize = test "Fpath.normalize" @@ fun () ->
-  eqp (Fpath.normalize (v ".")) (v ".");
-  eqp (Fpath.normalize (v "././.")) (v ".");
-  eqp (Fpath.normalize (v "./././")) (v ".");
-  eqp (Fpath.normalize (v "./a/..")) (v ".");
-  eqp (Fpath.normalize (v "./a/../")) (v ".");
-  eqp (Fpath.normalize (v "..")) (v "..");
-  eqp (Fpath.normalize (v "../../../a")) (v "../../../a");
-  eqp (Fpath.normalize (v "../../../a/")) (v "../../../a");
-  eqp (Fpath.normalize (v "/")) (v "/");
-  eqp (Fpath.normalize (v "/.")) (v "/");
-  eqp (Fpath.normalize (v "/..")) (v "/");
-  eqp (Fpath.normalize (v "/./../../.")) (v "/");
-  eqp (Fpath.normalize (v "/./../../.")) (v "/");
-  eqp (Fpath.normalize (v "../../a/..")) (v "../..");
-  eqp (Fpath.normalize (v "../../a/../.")) (v "../..");
-  eqp (Fpath.normalize (v "../../a/.././..")) (v "../../..");
-  eqp (Fpath.normalize (v "../../a/../..")) (v "../../..");
-  eqp (Fpath.normalize (v "/a/b/c/./../../g")) (v "/a/g");
-  eqp (Fpath.normalize (v "./a/b/c/./../../g")) (v "a/g");
-  eqp (Fpath.normalize (v "./a/b/c/./../../g/")) (v "a/g");
-  eqp (Fpath.normalize (v "a/b/c/./../../g")) (v "a/g");
-  eqp (Fpath.normalize (v "a/b/c/./../../g/")) (v "a/g");
-  if not windows then begin
-    eqp (Fpath.normalize (v "//a/b/c/./../../g")) (v "//a/g");
-  end;
-  if windows then begin
-    eqp (Fpath.normalize (v "C:/a/b/c/./../../g")) (v "C:/a/g");
-    eqp (Fpath.normalize (v "C:/a/b/c/./../../g")) (v "C:/a/g");
-    eqp (Fpath.normalize (v "\\\\?\\UNC\\server\\share\\.."))
-           (v "\\\\?\\UNC\\server\\share\\");
-  end;
   ()
 
 let rooted = test "Fpath.rooted" @@ fun () ->
@@ -739,16 +794,18 @@ let suite = suite "Fpath module"
       append;
       split_volume;
       segs;
+      is_dir_path;
+      is_file_path;
+      to_dir_path;
       filename;
-      file_to_dir;
-      dir_to_file;
       name;
       base;
       parent;
+      rem_empty_seg;
+      normalize;
       is_prefix;
       find_prefix;
       rem_prefix;
-      normalize;
       rooted;
       relativize;
       is_abs_rel;

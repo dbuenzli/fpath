@@ -68,15 +68,15 @@ let of_string = test "Fpath.{v,of_string}" @@ fun () ->
   end;
   ()
 
-let constants = test "Constants" @@ fun () ->
+let dir_sep = test "dir_sep" @@ fun () ->
   eq_str Fpath.dir_sep (if windows then "\\" else "/");
   ()
 
-let is_seg_valid = test "Fpath.is_seg_valid" @@ fun () ->
-  eq_bool (Fpath.is_seg_valid "abc") true;
-  eq_bool (Fpath.is_seg_valid "ab/c") false;
-  eq_bool (Fpath.is_seg_valid "ab\x00c") false;
-  if windows then eq_bool (Fpath.is_seg_valid "ab\\c") false;
+let is_seg = test "Fpath.is_seg" @@ fun () ->
+  eq_bool (Fpath.is_seg "abc") true;
+  eq_bool (Fpath.is_seg "ab/c") false;
+  eq_bool (Fpath.is_seg "ab\x00c") false;
+  if windows then eq_bool (Fpath.is_seg "ab\\c") false;
   ()
 
 let add_seg = test "Fpath.add_seg" @@ fun () ->
@@ -788,8 +788,8 @@ let split_ext = test "Fpath.split_ext" @@ fun () ->
 
 let suite = suite "Fpath module"
     [ of_string;
-      constants;
-      is_seg_valid;
+      dir_sep;
+      is_seg;
       add_seg;
       append;
       split_volume;

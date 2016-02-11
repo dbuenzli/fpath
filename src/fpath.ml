@@ -169,17 +169,15 @@ let to_string p = p
 let pp ppf p = Format.pp_print_string ppf (to_string p)
 let dump ppf p = String.dump ppf (to_string p)
 
-let is_seg_valid_windows s =
+let is_seg_windows s =
   let valid c = c <> '\x00' && c <> dir_sep_char && c <> '/' in
   String.for_all valid s
 
-let is_seg_valid_posix s =
+let is_seg_posix s =
   let valid c = c <> '\x00' && c <> dir_sep_char in
   String.for_all valid s
 
-let is_seg_valid =
-  (* FIXME do we want to be more/less strict ? *)
-  if windows then is_seg_valid_windows else is_seg_valid_posix
+let is_seg = if windows then is_seg_windows else is_seg_posix
 
 (* File paths *)
 
@@ -190,7 +188,7 @@ let v s = match of_string s with
 | Some p -> p
 
 let add_seg p seg =
-  if not (is_seg_valid seg) then invalid_arg (err_invalid_seg seg);
+  if not (is_seg seg) then invalid_arg (err_invalid_seg seg);
   let sep = if p.[String.length p - 1] = dir_sep_char then "" else dir_sep in
   String.concat [p; sep; seg]
 
@@ -584,7 +582,7 @@ let ext_exists ?(multi = false) p =
   | None -> assert false
 
 let add_ext e p =
-  if not (is_seg_valid e) then invalid_arg (err_invalid_ext e) else
+  if not (is_seg e) then invalid_arg (err_invalid_ext e) else
   let maybe_dot =
     if String.is_empty e then "" else
     if e.[0] <> ext_sep_char then ext_sep else ""
@@ -597,7 +595,7 @@ let rem_ext ?multi p =
   String.with_index_range p ~last:(String.Sub.start_pos ext - 1)
 
 let set_ext ?multi e p =
-  if not (is_seg_valid e) then invalid_arg (err_invalid_ext e) else
+  if not (is_seg e) then invalid_arg (err_invalid_ext e) else
   let ext = ext_sub ?multi (filename_sub p) in
   let p =
     if String.Sub.is_empty ext then (String.sub p) else

@@ -32,8 +32,8 @@ val dir_sep : string
 (** [dir_sep] is the platform dependent directory separator.  This is
     ["/"] on POSIX and ["\\"] on Windows. *)
 
-val is_seg_valid : string -> bool
-(** [is_seg_valid s] is [true] iff [s] does not contain {!dir_sep} or a
+val is_seg : string -> bool
+(** [is_seg s] is [true] iff [s] does not contain {!dir_sep} or a
     [0x00] byte. *)
 
 type t
@@ -49,7 +49,7 @@ val add_seg : t -> string -> t
 (** [add_seg p seg] adds [seg] at the end of [p]. If [seg] is [""]
     it is only added if [p] has no final empty segment. {{!ex_add_seg}Examples}.
 
-    @raise Invalid_argument if {!is_seg_valid}[ seg] is [false]. *)
+    @raise Invalid_argument if {!is_seg}[ seg] is [false]. *)
 
 val ( / ) : t -> string -> t
 (** [p / seg] is {!add_seg}[ p seg]. Left associative. *)
@@ -305,7 +305,7 @@ val add_ext : ext -> t -> t
     last segment. If [ext] doesn't start with a ['.'] one is prefixed to it
     before concatenation except if [ext] is [""]. {{!ex_add_ext}Examples}.
 
-    @raise Invalid_argument if {!is_seg_valid}[ ext] is [false]. *)
+    @raise Invalid_argument if {!is_seg}[ ext] is [false]. *)
 
 val rem_ext : ?multi:bool -> t -> t
 (** [rem_ext p] is [p] with the file extension of [p]'s last segment
@@ -315,7 +315,7 @@ val rem_ext : ?multi:bool -> t -> t
 val set_ext : ?multi:bool -> ext -> t -> t
 (** [set_ext ?multi p ext] is [add_ext ext (rem_ext ?multi p)].
 
-    @raise Invalid_argument if {!is_seg_valid}[ ext] is [false]. *)
+    @raise Invalid_argument if {!is_seg}[ ext] is [false]. *)
 
 val split_ext : ?multi:bool -> t -> t * ext
 (** [split_ext ?multi p] is [(rem_ext ?multi p, ext ?multi p)].

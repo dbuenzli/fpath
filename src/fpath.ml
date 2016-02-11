@@ -33,7 +33,7 @@ let dot_dir_sub = String.sub dot_dir
 let dotdot = ".."
 let dotdot_sub = String.sub dotdot
 
-let validate_and_collapse_seps p = try
+let validate_and_collapse_seps p =
   (* collapse non-initial sequences of [dir_sep] to a single one and checks
      no null byte *)
   let max_idx = String.length p - 1 in
@@ -60,7 +60,6 @@ let validate_and_collapse_seps p = try
     if max_idx > 0 then (if p.[0] = dir_sep_char then 1 else 0) else 0
   in
   try_no_alloc false start
-with Exit -> None
 
 let is_unc_path_windows p = String.is_prefix "\\\\" p
 

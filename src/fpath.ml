@@ -204,25 +204,13 @@ let ( // ) = append
 
 let is_rel_posix p = p.[0] <> dir_sep_char
 let is_rel_windows p =
-  let is_unc_path = String.is_prefix "\\\\" p in
-  if is_unc_path then false else
+  if is_unc_path_windows p then false else
   match String.find (Char.equal ':') p with
   | None -> p.[0] <> dir_sep_char
   | Some i -> p.[i+1] <> dir_sep_char (* i+1 exists by construction *)
 
 let is_rel = if windows then is_rel_windows else is_rel_posix
 let is_abs p = not (is_rel p)
-
-let is_prefix ~root p =
-  if not (String.is_prefix root p) then false else
-  (* Further check the prefix is segment-based. If [root] ends with a
-     dir_sep nothing more needs to be checked. If it doesn't we need
-     to check that [p]'s suffix is empty or starts with a directory
-     separator. *)
-  let suff_start = String.length root in
-  if root.[suff_start - 1] = dir_sep_char then true else
-  if suff_start = String.length p then true else
-  p.[suff_start] = dir_sep_char
 
 let is_root_posix p = String.equal p dir_sep || String.equal p "//"
 let is_root_windows p =
@@ -240,6 +228,17 @@ let is_current_dir_windows =
 
 let is_current_dir =
   if windows then is_current_dir_windows else is_current_dir_posix
+
+let is_prefix ~root p =
+  if not (String.is_prefix root p) then false else
+  (* Further check the prefix is segment-based. If [root] ends with a
+     dir_sep nothing more needs to be checked. If it doesn't we need
+     to check that [p]'s suffix is empty or starts with a directory
+     separator. *)
+  let suff_start = String.length root in
+  if root.[suff_start - 1] = dir_sep_char then true else
+  if suff_start = String.length p then true else
+  p.[suff_start] = dir_sep_char
 
 let equal = String.equal
 let compare = String.compare

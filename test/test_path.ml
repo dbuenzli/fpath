@@ -172,6 +172,7 @@ let is_root = test "Fpath.is_root" @@ fun () ->
   if not windows then (eq_bool (Fpath.is_root (v "//")) true);
   eq_bool (Fpath.is_root (v "/")) true;
   eq_bool (Fpath.is_root (v "/a")) false;
+  eq_bool (Fpath.is_root (v "/a/..")) false;
   eq_bool (Fpath.is_root (v "a")) false;
   eq_bool (Fpath.is_root (v ".")) false;
   eq_bool (Fpath.is_root (v "..")) false;

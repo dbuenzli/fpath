@@ -68,6 +68,17 @@ let of_string = test "Fpath.{v,of_string}" @@ fun () ->
   end;
   ()
 
+let constants = test "Constants" @@ fun () ->
+  eq_str Fpath.dir_sep (if windows then "\\" else "/");
+  ()
+
+let is_seg_valid = test "Fpath.is_seg_valid" @@ fun () ->
+  eq_bool (Fpath.is_seg_valid "abc") true;
+  eq_bool (Fpath.is_seg_valid "ab/c") false;
+  eq_bool (Fpath.is_seg_valid "ab\x00c") false;
+  if windows then eq_bool (Fpath.is_seg_valid "ab\\c") false;
+  ()
+
 let add_seg = test "Fpath.add_seg" @@ fun () ->
   app_raises ~pp:Fpath.pp (Fpath.add_seg (v "a/b/c")) "a\x00o";
   app_raises ~pp:Fpath.pp (Fpath.add_seg (v "a/b/c")) "a/o";
@@ -105,120 +116,6 @@ let append = test "Fpath.append" @@ fun () ->
       (v "\\\\srv\\share\\a\\b");
     eqp (Fpath.append (v "\\\\srv\\share\\a\\") (v "b"))
       (v "\\\\srv\\share\\a\\b");
-  end;
-  ()
-
-let constants = test "Constants" @@ fun () ->
-  eq_str Fpath.dir_sep (if windows then "\\" else "/");
-  ()
-
-let is_seg_valid = test "Fpath.is_seg_valid" @@ fun () ->
-  eq_bool (Fpath.is_seg_valid "abc") true;
-  eq_bool (Fpath.is_seg_valid "ab/c") false;
-  eq_bool (Fpath.is_seg_valid "ab\x00c") false;
-  if windows then eq_bool (Fpath.is_seg_valid "ab\\c") false;
-  ()
-
-let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->
-  let is_abs bool p =
-    let p = v p in
-    eq_bool (Fpath.is_abs p) bool;
-    eq_bool (Fpath.is_rel p) (not bool);
-  in
-  is_abs true "/a/b/c";
-  if not windows then is_abs true "//a/b/c";
-  is_abs false ".";
-  is_abs false "..";
-  is_abs false "../";
-  is_abs false "a";
-  is_abs false "a/b";
-  is_abs true "/";
-  if windows then begin
-    is_abs false "C:.";
-    is_abs true "C:\\";
-    is_abs true "C:/";
-    is_abs false "C:bli/bla";
-    is_abs false "C:bli/bla";
-    is_abs false  "C:rel";
-    is_abs true "\\\\server\\share\\";
-    is_abs true "\\\\?\\a:\\";
-    is_abs true "\\\\?\\a:\\c";
-    is_abs true "\\\\?\\server\\share\\";
-    is_abs true "\\\\?\\server\\share\\a";
-    is_abs true "\\\\?\\UNC\\server\\share\\";
-    is_abs true "\\\\?\\UNC\\server\\share\\a";
-    is_abs true "\\\\.\\device\\";
-    is_abs true "\\\\.\\device\\a";
-  end;
-  ()
-
-let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
-  eq_bool (Fpath.is_dotfile (v ".")) false;
-  eq_bool (Fpath.is_dotfile (v "..")) false;
-  eq_bool (Fpath.is_dotfile (v "a/.")) false;
-  eq_bool (Fpath.is_dotfile (v "a/..")) false;
-  eq_bool (Fpath.is_dotfile (v "/a/.")) false;
-  eq_bool (Fpath.is_dotfile (v "/a/..")) false;
-  eq_bool (Fpath.is_dotfile (v "...")) true;
-  eq_bool (Fpath.is_dotfile (v ".../")) true;
-  eq_bool (Fpath.is_dotfile (v "a/...")) true;
-  eq_bool (Fpath.is_dotfile (v "a/.../")) true;
-  eq_bool (Fpath.is_dotfile (v "/a/...")) true;
-  eq_bool (Fpath.is_dotfile (v "/a/.../")) true;
-  eq_bool (Fpath.is_dotfile (v "/a/.../a")) false;
-  ()
-
-let is_root = test "Fpath.is_root" @@ fun () ->
-  if not windows then (eq_bool (Fpath.is_root (v "//")) true);
-  eq_bool (Fpath.is_root (v "/")) true;
-  eq_bool (Fpath.is_root (v "/a")) false;
-  eq_bool (Fpath.is_root (v "/a/..")) false;
-  eq_bool (Fpath.is_root (v "a")) false;
-  eq_bool (Fpath.is_root (v ".")) false;
-  eq_bool (Fpath.is_root (v "..")) false;
-  if windows then begin
-    eq_bool (Fpath.is_root (v "\\\\.\\dev\\")) true;
-    eq_bool (Fpath.is_root (v "\\\\.\\dev\\a")) false;
-    eq_bool (Fpath.is_root (v "\\\\server\\share\\")) true;
-    eq_bool (Fpath.is_root (v "\\\\server\\share\\a")) false;
-    eq_bool (Fpath.is_root (v "C:\\")) true;
-    eq_bool (Fpath.is_root (v "C:a")) false;
-    eq_bool (Fpath.is_root (v "C:\\a")) false;
-  end;
-  ()
-
-let is_current_dir = test "Fpath.is_current_dir" @@ fun () ->
-  eq_bool (Fpath.is_current_dir (v ".")) true;
-  eq_bool (Fpath.is_current_dir (v "./")) true;
-  eq_bool (Fpath.is_current_dir (v "./a/..")) false;
-  eq_bool (Fpath.is_current_dir (v "/.")) false;
-  if windows then begin
-    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.")) false;
-    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.\\")) false;
-    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.")) false;
-    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.\\")) false;
-    eq_bool (Fpath.is_current_dir (v "C:.")) true;
-    eq_bool (Fpath.is_current_dir (v "C:./")) true;
-    eq_bool (Fpath.is_current_dir (v "C:./a/..")) false;
-  end;
-  ()
-
-let is_prefix = test "Fpath.is_prefix" @@ fun () ->
-  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
-  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
-  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/bc")) false;
-  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/c")) true;
-  eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b/c")) true;
-  eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b")) false;
-  eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b")) false;
-  eq_bool (Fpath.is_prefix (v "a/b") (v "/a/b")) false;
-  eq_bool (Fpath.is_prefix (v "abcd/") (v "abcd")) false;
-  eq_bool (Fpath.is_prefix (v "abcd") (v "abcd/bla")) true;
-  if not windows then begin
-    eq_bool (Fpath.is_prefix (v "//a/b") (v "/a/b")) false
-  end;
-  if windows then begin
-    eq_bool (Fpath.is_prefix (v "C:a") (v "a")) false;
   end;
   ()
 
@@ -304,6 +201,64 @@ let segs = test "Fpath.segs" @@ fun () ->
   end;
   ()
 
+let filename = test "Fpath.filename" @@ fun () ->
+  eq_str (Fpath.filename @@ v "/a/b/") "";
+  eq_str (Fpath.filename @@ v "/a/b") "b";
+  eq_str (Fpath.filename @@ v "a") "a";
+  eq_str (Fpath.filename @@ v "a/") "";
+  eq_str (Fpath.filename @@ v "/") "";
+  if not windows then begin
+    eq_str (Fpath.filename @@ v "//") "";
+    eq_str (Fpath.filename @@ v "//a/b") "b";
+    eq_str (Fpath.filename @@ v "//a/b/") "";
+  end;
+  if windows then begin
+    eq_str (Fpath.filename @@ v "\\\\server\\share\\a") "a";
+    eq_str (Fpath.filename @@ v "\\\\.\\device\\") "";
+    eq_str (Fpath.filename @@ v "\\\\.\\device\\a") "a";
+    eq_str (Fpath.filename @@ v "C:\\") "";
+    eq_str (Fpath.filename @@ v "C:a") "a";
+  end;
+  ()
+
+let file_to_dir = test "Fpath.file_to_dir" @@ fun () ->
+  eqp (Fpath.file_to_dir @@ v "/a/b") (v "/a/b/");
+  eqp (Fpath.file_to_dir @@ v "/a/b/") (v "/a/b/");
+  eqp (Fpath.file_to_dir @@ v "a") (v "a/");
+  eqp (Fpath.file_to_dir @@ v "a/") (v "a/");
+  eqp (Fpath.file_to_dir @@ v "/") (v "/");
+  if not windows then begin
+    eqp (Fpath.file_to_dir @@ v "//") (v "//");
+    eqp (Fpath.file_to_dir @@ v "//a") (v "//a/");
+  end;
+  if windows then begin
+    eqp (Fpath.file_to_dir @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
+    eqp (Fpath.file_to_dir @@ v "C:a") (v "C:a/");
+    eqp (Fpath.file_to_dir @@ v "C:\\") (v "C:\\");
+  end;
+  ()
+
+let dir_to_file = test "Fpath.dir_to_file" @@ fun () ->
+  eqp (Fpath.dir_to_file @@ v "/a/b") (v "/a/b");
+  eqp (Fpath.dir_to_file @@ v "/a/b/") (v "/a/b");
+  eqp (Fpath.dir_to_file @@ v "a") (v "a");
+  eqp (Fpath.dir_to_file @@ v "a/") (v "a");
+  eqp (Fpath.dir_to_file @@ v "/") (v "/");
+  if not windows then begin
+    eqp (Fpath.dir_to_file @@ v "//") (v "//");
+    eqp (Fpath.dir_to_file @@ v "//a") (v "//a");
+    eqp (Fpath.dir_to_file @@ v "//a/") (v "//a");
+  end;
+  if windows then begin
+    eqp (Fpath.dir_to_file @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
+    eqp (Fpath.dir_to_file @@ v "\\\\server\\share\\a\\")
+      (v "\\\\server\\share\\a");
+    eqp (Fpath.dir_to_file @@ v "C:a") (v "C:a");
+    eqp (Fpath.dir_to_file @@ v "C:a/") (v "C:a");
+    eqp (Fpath.dir_to_file @@ v "C:\\") (v "C:\\");
+  end;
+  ()
+
 let name = test "Fpath.name" @@ fun () ->
   eq_str (Fpath.name @@ v "/a/b/") "b";
   eq_str (Fpath.name @@ v "/a/b") "b";
@@ -322,26 +277,6 @@ let name = test "Fpath.name" @@ fun () ->
     eq_str (Fpath.name @@ v "\\\\.\\device\\a") "a";
     eq_str (Fpath.name @@ v "C:\\") "";
     eq_str (Fpath.name @@ v "C:a") "a";
-  end;
-  ()
-
-let filename = test "Fpath.filename" @@ fun () ->
-  eq_str (Fpath.filename @@ v "/a/b/") "";
-  eq_str (Fpath.filename @@ v "/a/b") "b";
-  eq_str (Fpath.filename @@ v "a") "a";
-  eq_str (Fpath.filename @@ v "a/") "";
-  eq_str (Fpath.filename @@ v "/") "";
-  if not windows then begin
-    eq_str (Fpath.filename @@ v "//") "";
-    eq_str (Fpath.filename @@ v "//a/b") "b";
-    eq_str (Fpath.filename @@ v "//a/b/") "";
-  end;
-  if windows then begin
-    eq_str (Fpath.filename @@ v "\\\\server\\share\\a") "a";
-    eq_str (Fpath.filename @@ v "\\\\.\\device\\") "";
-    eq_str (Fpath.filename @@ v "\\\\.\\device\\a") "a";
-    eq_str (Fpath.filename @@ v "C:\\") "";
-    eq_str (Fpath.filename @@ v "C:a") "a";
   end;
   ()
 
@@ -399,41 +334,22 @@ let parent = test "Fpath.parent" @@ fun () ->
   end;
   ()
 
-let file_to_dir = test "Fpath.file_to_dir" @@ fun () ->
-  eqp (Fpath.file_to_dir @@ v "/a/b") (v "/a/b/");
-  eqp (Fpath.file_to_dir @@ v "/a/b/") (v "/a/b/");
-  eqp (Fpath.file_to_dir @@ v "a") (v "a/");
-  eqp (Fpath.file_to_dir @@ v "a/") (v "a/");
-  eqp (Fpath.file_to_dir @@ v "/") (v "/");
+let is_prefix = test "Fpath.is_prefix" @@ fun () ->
+  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
+  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
+  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/bc")) false;
+  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/c")) true;
+  eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b/c")) true;
+  eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b")) false;
+  eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b")) false;
+  eq_bool (Fpath.is_prefix (v "a/b") (v "/a/b")) false;
+  eq_bool (Fpath.is_prefix (v "abcd/") (v "abcd")) false;
+  eq_bool (Fpath.is_prefix (v "abcd") (v "abcd/bla")) true;
   if not windows then begin
-    eqp (Fpath.file_to_dir @@ v "//") (v "//");
-    eqp (Fpath.file_to_dir @@ v "//a") (v "//a/");
+    eq_bool (Fpath.is_prefix (v "//a/b") (v "/a/b")) false
   end;
   if windows then begin
-    eqp (Fpath.file_to_dir @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
-    eqp (Fpath.file_to_dir @@ v "C:a") (v "C:a/");
-    eqp (Fpath.file_to_dir @@ v "C:\\") (v "C:\\");
-  end;
-  ()
-
-let dir_to_file = test "Fpath.dir_to_file" @@ fun () ->
-  eqp (Fpath.dir_to_file @@ v "/a/b") (v "/a/b");
-  eqp (Fpath.dir_to_file @@ v "/a/b/") (v "/a/b");
-  eqp (Fpath.dir_to_file @@ v "a") (v "a");
-  eqp (Fpath.dir_to_file @@ v "a/") (v "a");
-  eqp (Fpath.dir_to_file @@ v "/") (v "/");
-  if not windows then begin
-    eqp (Fpath.dir_to_file @@ v "//") (v "//");
-    eqp (Fpath.dir_to_file @@ v "//a") (v "//a");
-    eqp (Fpath.dir_to_file @@ v "//a/") (v "//a");
-  end;
-  if windows then begin
-    eqp (Fpath.dir_to_file @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
-    eqp (Fpath.dir_to_file @@ v "\\\\server\\share\\a\\")
-      (v "\\\\server\\share\\a");
-    eqp (Fpath.dir_to_file @@ v "C:a") (v "C:a");
-    eqp (Fpath.dir_to_file @@ v "C:a/") (v "C:a");
-    eqp (Fpath.dir_to_file @@ v "C:\\") (v "C:\\");
+    eq_bool (Fpath.is_prefix (v "C:a") (v "a")) false;
   end;
   ()
 
@@ -574,6 +490,90 @@ let relativize = test "Fpath.relativize" @@ fun () ->
   relativize (v "../a") (v "../../b") (Some (v "../../b"));
   relativize (v "a") (v "../../b") (Some (v "../../../b"));
   relativize (v "a/c") (v "../../b") (Some (v "../../../../b"));
+  ()
+
+let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->
+  let is_abs bool p =
+    let p = v p in
+    eq_bool (Fpath.is_abs p) bool;
+    eq_bool (Fpath.is_rel p) (not bool);
+  in
+  is_abs true "/a/b/c";
+  if not windows then is_abs true "//a/b/c";
+  is_abs false ".";
+  is_abs false "..";
+  is_abs false "../";
+  is_abs false "a";
+  is_abs false "a/b";
+  is_abs true "/";
+  if windows then begin
+    is_abs false "C:.";
+    is_abs true "C:\\";
+    is_abs true "C:/";
+    is_abs false "C:bli/bla";
+    is_abs false "C:bli/bla";
+    is_abs false  "C:rel";
+    is_abs true "\\\\server\\share\\";
+    is_abs true "\\\\?\\a:\\";
+    is_abs true "\\\\?\\a:\\c";
+    is_abs true "\\\\?\\server\\share\\";
+    is_abs true "\\\\?\\server\\share\\a";
+    is_abs true "\\\\?\\UNC\\server\\share\\";
+    is_abs true "\\\\?\\UNC\\server\\share\\a";
+    is_abs true "\\\\.\\device\\";
+    is_abs true "\\\\.\\device\\a";
+  end;
+  ()
+
+let is_root = test "Fpath.is_root" @@ fun () ->
+  if not windows then (eq_bool (Fpath.is_root (v "//")) true);
+  eq_bool (Fpath.is_root (v "/")) true;
+  eq_bool (Fpath.is_root (v "/a")) false;
+  eq_bool (Fpath.is_root (v "/a/..")) false;
+  eq_bool (Fpath.is_root (v "a")) false;
+  eq_bool (Fpath.is_root (v ".")) false;
+  eq_bool (Fpath.is_root (v "..")) false;
+  if windows then begin
+    eq_bool (Fpath.is_root (v "\\\\.\\dev\\")) true;
+    eq_bool (Fpath.is_root (v "\\\\.\\dev\\a")) false;
+    eq_bool (Fpath.is_root (v "\\\\server\\share\\")) true;
+    eq_bool (Fpath.is_root (v "\\\\server\\share\\a")) false;
+    eq_bool (Fpath.is_root (v "C:\\")) true;
+    eq_bool (Fpath.is_root (v "C:a")) false;
+    eq_bool (Fpath.is_root (v "C:\\a")) false;
+  end;
+  ()
+
+let is_current_dir = test "Fpath.is_current_dir" @@ fun () ->
+  eq_bool (Fpath.is_current_dir (v ".")) true;
+  eq_bool (Fpath.is_current_dir (v "./")) true;
+  eq_bool (Fpath.is_current_dir (v "./a/..")) false;
+  eq_bool (Fpath.is_current_dir (v "/.")) false;
+  if windows then begin
+    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.\\")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.\\")) false;
+    eq_bool (Fpath.is_current_dir (v "C:.")) true;
+    eq_bool (Fpath.is_current_dir (v "C:./")) true;
+    eq_bool (Fpath.is_current_dir (v "C:./a/..")) false;
+  end;
+  ()
+
+let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
+  eq_bool (Fpath.is_dotfile (v ".")) false;
+  eq_bool (Fpath.is_dotfile (v "..")) false;
+  eq_bool (Fpath.is_dotfile (v "a/.")) false;
+  eq_bool (Fpath.is_dotfile (v "a/..")) false;
+  eq_bool (Fpath.is_dotfile (v "/a/.")) false;
+  eq_bool (Fpath.is_dotfile (v "/a/..")) false;
+  eq_bool (Fpath.is_dotfile (v "...")) true;
+  eq_bool (Fpath.is_dotfile (v ".../")) true;
+  eq_bool (Fpath.is_dotfile (v "a/...")) true;
+  eq_bool (Fpath.is_dotfile (v "a/.../")) true;
+  eq_bool (Fpath.is_dotfile (v "/a/...")) true;
+  eq_bool (Fpath.is_dotfile (v "/a/.../")) true;
+  eq_bool (Fpath.is_dotfile (v "/a/.../a")) false;
   ()
 
 let get_ext = test "Fpath.get_ext" @@ fun () ->
@@ -733,28 +733,28 @@ let split_ext = test "Fpath.split_ext" @@ fun () ->
 
 let suite = suite "Fpath module"
     [ of_string;
-      add_seg;
-      append;
       constants;
       is_seg_valid;
-      is_abs_rel;
-      is_dotfile;
-      is_root;
-      is_current_dir;
-      is_prefix;
+      add_seg;
+      append;
       split_volume;
       segs;
-      name;
       filename;
-      base;
-      parent;
       file_to_dir;
       dir_to_file;
+      name;
+      base;
+      parent;
+      is_prefix;
       find_prefix;
       rem_prefix;
       normalize;
       rooted;
       relativize;
+      is_abs_rel;
+      is_root;
+      is_current_dir;
+      is_dotfile;
       get_ext;
       has_ext;
       ext_exists;

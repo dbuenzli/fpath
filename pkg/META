@@ -1,4 +1,4 @@
-description = "File paths for OCaml"
+description = "File system paths for OCaml"
 version = "%%VERSION%%"
 
 archive(byte) = "fpath.cma"

@@ -22,14 +22,7 @@
     [Fpath] operates on paths without accessing the operating
     system.
 
-    {b Portability.} In the following backslashes are escaped as per
-    OCaml conventions in strings so ["\\"] is a single
-    backslash. While Windows accepts both ['\\'] and ['/'] as
-    directory separator, [Fpath], on Windows, converts ['/'] to ['\\']
-    on the fly. Therefore you should use ['/'] for constant paths you
-    construct with {!v} or better, construct them directly with {!( /
-    )}. Avoiding platform specific volumes or hard-coding file
-    hierarchy conventions in your constants will improve portability.
+    Consult a few {{!tips}important tips}.
 
     {e v%%VERSION%% - {{:%%PKG_WWW%% }homepage}} *)
 
@@ -38,6 +31,10 @@
 val dir_sep : string
 (** [dir_sep] is the platform dependent directory separator.  This is
     ["/"] on POSIX and ["\\"] on Windows. *)
+
+val is_seg_valid : string -> bool
+(** [is_seg_valid s] is [true] iff [s] does not contain {!dir_sep} or a
+    [0x00] byte. *)
 
 type t
 (** The type for paths. *)
@@ -54,6 +51,9 @@ val add_seg : t -> string -> t
 
     @raise Invalid_argument if {!is_seg_valid}[ seg] is [false]. *)
 
+val ( / ) : t -> string -> t
+(** [p / seg] is {!add_seg}[ p seg]. Left associative. *)
+
 val append : t -> t -> t
 (** [append p p'] appends [p'] to [p] as follows:
     {ul
@@ -62,60 +62,8 @@ val append : t -> t -> t
     {- Otherwise appends [p'] to [p] using a {!dir_sep} if needed.}}
     {{!ex_append}Examples}. *)
 
-val ( / ) : t -> string -> t
-(** [p / seg] is {!add_seg}[ p seg]. Left associative. *)
-
 val ( // ) : t -> t -> t
 (** [p // p'] is {!append}[ p p']. Left associative. *)
-
-(** {1:predicates Predicates and comparison} *)
-
-val is_seg_valid : string -> bool
-(** [is_seg_valid s] is [true] iff [s] does not contain {!dir_sep} or a
-    [0x00] byte. *)
-
-val is_rel : t -> bool
-(** [is_rel p] is [true] iff [p] is a relative path. *)
-
-val is_abs : t -> bool
-(** [is_abs p] is [true] iff [p] is an absolute path. *)
-
-val is_root : t -> bool
-(** [is_root p] is [true] if [p] is a root directory, that is
-    an absolute path with a single empty segment.
-    {{!ex_is_root}Examples}.
-
-    {b Warning.} This is a structural test and will return [false]
-    e.g. on ["/a/.."]. {!normalize} the path before testing to avoid
-    this problem. *)
-
-val is_current_dir : t -> bool
-(** [is_current_dir p] is true iff [p] is the current relative directory,
-    i.e. either ["."] or ["./"]. {{!ex_is_current_dir}Examples}.
-
-    {b Warning.} This is a structural test and will return [false],
-    e.g. on ["./a/.."]. {!normalize} the path before testing to avoid
-    this problem. *)
-
-val is_dotfile : t -> bool
-(** [is_dotfile p] is [true] iff [p]'s {!base} is not
-    [.] or [..] and starts with a [.]. *)
-
-val is_prefix : root:t -> t -> bool
-(** [is_prefix ~root p] is [true] if [root] is a prefix of [p].  This
-    checks that [root] has the same optional volume as [p], the same
-    optional root directory separator and that the list of segments
-    of [root] is a prefix of the segments of [p]. {{!ex_is_prefix}Examples}. *)
-
-val equal : t -> t -> bool
-(** [equal p p'] is [true] if [p] and [p'] have the same volume
-    are both relative or absolute and have the same segments. This
-    is a byte level comparison. *)
-
-val compare : t  -> t -> int
-(** [compare p p'] is a total order on paths compatible with {!equal}. *)
-
-(** {1:vol Volume and segments} *)
 
 val split_volume : t -> string * t
 (** [split_volume p] is the pair [(vol, q)] where [vol] is
@@ -142,7 +90,7 @@ $(drive):
     {b Warning.} [equal (append (v vol) q) p] does not hold. *)
 
 val segs : t -> string list
-(** [segs p] is [p]'s (non-empty) list of segments. Absolute paths have an
+(** [segs p] is [p]'s {e non-empty} list of segments. Absolute paths have an
     initial empty string added, this allows to recover the path with
     {!String.concat}[ ~sep:dir_sep]. {{!ex_segs}Examples.}
 
@@ -151,15 +99,28 @@ val segs : t -> string list
     {- [to_string (snd (split_volume p)) = (String.concat ~sep:dir_sep
        (segs p))]}} *)
 
-val name : t -> string
-(** [name p] is the name of [p]. This is the last {e non-empty} segment of
-    [p] or the empty string if [p] is {!root}. See also {!filename} and
-    {!base}. {{!ex_name}Examples}. *)
+(** {1:filedir File and directory paths} *)
 
 val filename : t -> string
 (** [filename p] is the file name of [p]. This is the last segment of
     [p]. If [p] is a directory path, this is the empty string. See
     also {!name}. {{!ex_filename}Examples}. *)
+
+val file_to_dir : t -> t
+(** [file_to_dir p] is {!add_seg}[ p ""]. It ensures the result has a
+    trailing {!dir_sep}. {{!ex_file_to_dir}Examples}. *)
+
+val dir_to_file : t -> t
+(** [dir_to_file p] removes the last segment of [p] if it is empty.
+    It ensures the result has no trailing {!dir_sep}.
+    {{!ex_dir_to_file}Examples}. *)
+
+(** {1:parentbase Base and parent paths} *)
+
+val name : t -> string
+(** [name p] is the name of [p]. This is the last {e non-empty} segment of
+    [p] or the empty string if [p] is {!root}. See also {!filename} and
+    {!base}. {{!ex_name}Examples}. *)
 
 val base : t -> t
 (** [base p] is the path made of the last {e non-empty} segment of
@@ -171,14 +132,13 @@ val parent : t -> t
     or [.] for a single segment relative path.
     {{!ex_parent}Examples}. *)
 
-val file_to_dir : t -> t
-(** [file_to_dir p] is {!add_seg}[ p ""]. It ensures the result has a
-    trailing {!dir_sep}. {{!ex_file_to_dir}Examples}. *)
+(** {1:prefix Normalization and prefixes} *)
 
-val dir_to_file : t -> t
-(** [dir_to_file p] removes the last segment of [p] if it is empty.
-    It ensures the result has no trailing {!dir_sep}.
-    {{!ex_dir_to_file}Examples}. *)
+val is_prefix : root:t -> t -> bool
+(** [is_prefix ~root p] is [true] if [root] is a prefix of [p].  This
+    checks that [root] has the same optional volume as [p], the same
+    optional root directory separator and that the list of segments
+    of [root] is a prefix of the segments of [p]. {{!ex_is_prefix}Examples}. *)
 
 val find_prefix : t -> t -> t option
 (** [find_prefix p p'] is [Some root] if there exists [root] such that
@@ -229,6 +189,43 @@ val relativize : root:t -> t -> t option
     {- [Some q] otherwise with [q] such that
        [equal (normalize (append root q)) (normalize p) = true].}}
        {{!ex_relativize}Examples.} *)
+
+(** {1:predicates Predicates and comparison} *)
+
+val is_rel : t -> bool
+(** [is_rel p] is [true] iff [p] is a relative path. *)
+
+val is_abs : t -> bool
+(** [is_abs p] is [true] iff [p] is an absolute path. *)
+
+val is_root : t -> bool
+(** [is_root p] is [true] if [p] is a root directory, that is
+    an absolute path with a single empty segment.
+    {{!ex_is_root}Examples}.
+
+    {b Warning.} This is a structural test and will return [false]
+    e.g. on ["/a/.."]. {!normalize} the path before testing to avoid
+    this problem. *)
+
+val is_current_dir : t -> bool
+(** [is_current_dir p] is true iff [p] is the current relative directory,
+    i.e. either ["."] or ["./"]. {{!ex_is_current_dir}Examples}.
+
+    {b Warning.} This is a structural test and will return [false],
+    e.g. on ["./a/.."]. {!normalize} the path before testing to avoid
+    this problem. *)
+
+val is_dotfile : t -> bool
+(** [is_dotfile p] is [true] iff [p]'s {!name} is not
+    ["."] or [".."] and starts with a [.]. *)
+
+val equal : t -> t -> bool
+(** [equal p p'] is [true] if [p] and [p'] have the same volume
+    are both relative or absolute and have the same segments. This
+    is a byte level comparison. *)
+
+val compare : t  -> t -> int
+(** [compare p p'] is a total order on paths compatible with {!equal}. *)
 
 (** {1:conversions Conversions and pretty printing} *)
 
@@ -444,7 +441,27 @@ module Map : sig
         [ppf] using [pp_v] to print the map codomain elements. *)
 end
 
-(** {1:ex Examples}
+(** {1:tips Tips}
+
+    {ul
+    {- Windows accepts both ['\\'] and ['/'] as directory
+       separator.  However [Fpath] on Windows converts ['/'] to ['\\'] on
+       the fly. Therefore you should either use ['/'] for defining
+       constant paths you inject with {!v} or better, construct them
+       directly with {!(/)}. {!to_string} will convert these paths
+       to strings using the platform's specific directory
+       separator {!dir_sep}.}
+    {- Avoid platform specific {{!split_volume}volumes} or hard-coding file
+       hierarchy conventions in your constants.}
+    {- Do not assume there is a single root path and that it is
+       [/]. On Windows each {{!split_volume}volume} can have a root path.
+       Use {!is_root} to detect root paths.}
+    {- Do not use {!to_string} to construct URIs, {!to_string} uses
+       {!dir_sep} to separate segments, on Windows this is ['\\'] which
+       is not what URIs expect. Access the path segments directly
+       with {!segs}, note that you will need to percent encode these.}}
+
+    {1:ex Examples}
 
     {2:ex_add_seg {!add_seg}}
 
@@ -469,49 +486,6 @@ end
     {- [equal (append (v "a/b/") (v "e/f")) (v "a/b/e/f")]}
     {- [equal (append (v "a/b") (v "C:e")) (v "C:e")] (Windows)}}
 
-    {2:ex_is_root {!is_root}}
-    {ul
-    {- [is_root (v "//") = true]}
-    {- [is_root (v "/") = true]}
-    {- [is_root (v "/a/..") = false]}
-    {- [is_root (v "/a") = false]}
-    {- [is_root (v "a") = false]}
-    {- [is_root (v ".") = false]}
-    {- [is_root (v "\\\\.\\dev\\") = true] (Windows)}
-    {- [is_root (v "\\\\.\\dev\\a") = false] (Windows)}
-    {- [is_root (v "\\\\server\\share\\") = true] (Windows)}
-    {- [is_root (v "\\\\server\\share\\a") = false] (Windows)}
-    {- [is_root (v "C:\\") = true] (Windows)}
-    {- [is_root (v "C:a") = false] (Windows)}
-    {- [is_root (v "C:\\a") = false] (Windows)}}
-
-    {2:ex_is_current_dir {!is_current_dir}}
-    {ul
-    {- [is_current_dir (v ".") = true]}
-    {- [is_current_dir (v "./") = true]}
-    {- [is_current_dir (v "./a/..") = false]}
-    {- [is_current_dir (v "/.") = false]}
-    {- [is_current_dir (v "\\\\.\\dev\\.") = false] (Windows)}
-    {- [is_current_dir (v "\\\\.\\dev\\.\\") = false] (Windows)}
-    {- [is_current_dir (v "\\\\server\\share\\.") = false] (Windows)}
-    {- [is_current_dir (v "\\\\server\\share\\.\\") = false] (Windows)}
-    {- [is_current_dir (v "C:.") = true] (Windows)}
-    {- [is_current_dir (v "C:./") = true] (Windows)}
-    {- [is_current_dir (v "C:./a/..") = false] (Windows)}}
-
-    {2:ex_is_prefix {!is_prefix}}
-
-    {ul
-    {- [is_prefix (v "/a/b") (v "/a/b") = true]}
-    {- [is_prefix (v "/a/b") (v "/a/b/") = true]}
-    {- [is_prefix (v "/a/b") (v "/a/bc") = false]}
-    {- [is_prefix (v "/a/b") (v "/a/b/c") = true]}
-    {- [is_prefix (v "/a/b/") (v "/a/b") = false]}
-    {- [is_prefix (v "a/b") (v "/a/b") = false]}
-    {- [is_prefix (v "a/b") (v "a/b") = true]}
-    {- [is_prefix (v "//a/b") (v "/a/b") = false]}
-    {- [is_prefix (v "C:a") (v "a") = false] (Windows)}}
-
     {2:ex_segs {!segs}}
 
     {ul
@@ -527,17 +501,6 @@ end
     {- [segs (v "C:a") = ["a"]] (Windows)}
     {- [segs (v "C:\\a") = ["";"a"]] (Windows)}}
 
-    {2:ex_name {!name}}
-
-    {ul
-    {- [name (v "/a/b/") = "b"]}
-    {- [name (v "/a/b") = "b"]}
-    {- [name (v "a") = "a"]}
-    {- [name (v "a/") = "a"]}
-    {- [name (v "/") = ""]}
-    {- [name (v "C:\\") = ""] (Windows)}
-    {- [name (v "C:a") = "a"] (Windows)}}
-
     {2:ex_filename {!filename}}
 
     {ul
@@ -548,6 +511,43 @@ end
     {- [filename (v "/") = ""]}
     {- [filename (v "C:\\") = ""] (Windows)}
     {- [filename (v "C:a") = "a"] (Windows)}}
+
+    {2:ex_file_to_dir {!file_to_dir}}
+
+    {ul
+    {- [equal (file_to_dir @@ v "/a/b") (v "/a/b/")]}
+    {- [equal (file_to_dir @@ v "/a/b/") (v "/a/b/")]}
+    {- [equal (file_to_dir @@ v "a") (v "a/")]}
+    {- [equal (file_to_dir @@ v "/") (v "/")]}
+    {- [equal (file_to_dir @@ v "\\\\server\\share\\")
+       (v "\\\\server\\share\\")]
+       (Windows)}
+    {- [equal (file_to_dir @@ v "C:a") (v "C:a/")] (Windows)}
+    {- [equal (file_to_dir @@ v "C:\\") (v "C:\\")] (Windows)}}
+
+    {2:ex_dir_to_file {!dir_to_file}}
+
+    {ul
+    {- [equal (dir_to_file @@ v "/a/b") (v "/a/b")]}
+    {- [equal (dir_to_file @@ v "/a/b/") (v "/a/b")]}
+    {- [equal (dir_to_file @@ v "a/") (v "a")]}
+    {- [equal (dir_to_file @@ v "/") (v "/")]}
+    {- [equal (dir_to_file @@ v "\\\\server\\share\\")
+       (v "\\\\server\\share\\")]
+       (Windows)}
+    {- [equal (dir_to_file @@ v "C:a/") (v "C:a")] (Windows)}
+    {- [equal (dir_to_file @@ v "C:\\") (v "C:\\")] (Windows)}}
+
+    {2:ex_name {!name}}
+
+    {ul
+    {- [name (v "/a/b/") = "b"]}
+    {- [name (v "/a/b") = "b"]}
+    {- [name (v "a") = "a"]}
+    {- [name (v "a/") = "a"]}
+    {- [name (v "/") = ""]}
+    {- [name (v "C:\\") = ""] (Windows)}
+    {- [name (v "C:a") = "a"] (Windows)}}
 
     {2:ex_base {!base}}
 
@@ -581,31 +581,18 @@ end
     {- [equal (parent @@ v "C:a") (v "C:.")] (Windows)}
     {- [equal (parent @@ v "C:\\") (v "C:\\")] (Windows)}}
 
-    {2:ex_file_to_dir {!file_to_dir}}
+    {2:ex_is_prefix {!is_prefix}}
 
     {ul
-    {- [equal (file_to_dir @@ v "/a/b") (v "/a/b/")]}
-    {- [equal (file_to_dir @@ v "/a/b/") (v "/a/b/")]}
-    {- [equal (file_to_dir @@ v "a") (v "a/")]}
-    {- [equal (file_to_dir @@ v "/") (v "/")]}
-    {- [equal (file_to_dir @@ v "\\\\server\\share\\")
-       (v "\\\\server\\share\\")]
-       (Windows)}
-    {- [equal (file_to_dir @@ v "C:a") (v "C:a/")] (Windows)}
-    {- [equal (file_to_dir @@ v "C:\\") (v "C:\\")] (Windows)}}
-
-    {2:ex_dir_to_file {!dir_to_file}}
-
-    {ul
-    {- [equal (dir_to_file @@ v "/a/b") (v "/a/b")]}
-    {- [equal (dir_to_file @@ v "/a/b/") (v "/a/b")]}
-    {- [equal (dir_to_file @@ v "a/") (v "a")]}
-    {- [equal (dir_to_file @@ v "/") (v "/")]}
-    {- [equal (dir_to_file @@ v "\\\\server\\share\\")
-       (v "\\\\server\\share\\")]
-       (Windows)}
-    {- [equal (dir_to_file @@ v "C:a/") (v "C:a")] (Windows)}
-    {- [equal (dir_to_file @@ v "C:\\") (v "C:\\")] (Windows)}}
+    {- [is_prefix (v "/a/b") (v "/a/b") = true]}
+    {- [is_prefix (v "/a/b") (v "/a/b/") = true]}
+    {- [is_prefix (v "/a/b") (v "/a/bc") = false]}
+    {- [is_prefix (v "/a/b") (v "/a/b/c") = true]}
+    {- [is_prefix (v "/a/b/") (v "/a/b") = false]}
+    {- [is_prefix (v "a/b") (v "/a/b") = false]}
+    {- [is_prefix (v "a/b") (v "a/b") = true]}
+    {- [is_prefix (v "//a/b") (v "/a/b") = false]}
+    {- [is_prefix (v "C:a") (v "a") = false] (Windows)}}
 
     {2:ex_find_prefix {!find_prefix}}
 
@@ -675,6 +662,36 @@ end
     {- [relativize (v "../a") (v "b")] is [None]}
     {- [relativize (v "../../a") (v "../b")] is [None]}
     {- [relativize (v "../a") (v "../../b")] is [(Some "../../b")]}}
+
+    {2:ex_is_root {!is_root}}
+    {ul
+    {- [is_root (v "//") = true]}
+    {- [is_root (v "/") = true]}
+    {- [is_root (v "/a/..") = false]}
+    {- [is_root (v "/a") = false]}
+    {- [is_root (v "a") = false]}
+    {- [is_root (v ".") = false]}
+    {- [is_root (v "\\\\.\\dev\\") = true] (Windows)}
+    {- [is_root (v "\\\\.\\dev\\a") = false] (Windows)}
+    {- [is_root (v "\\\\server\\share\\") = true] (Windows)}
+    {- [is_root (v "\\\\server\\share\\a") = false] (Windows)}
+    {- [is_root (v "C:\\") = true] (Windows)}
+    {- [is_root (v "C:a") = false] (Windows)}
+    {- [is_root (v "C:\\a") = false] (Windows)}}
+
+    {2:ex_is_current_dir {!is_current_dir}}
+    {ul
+    {- [is_current_dir (v ".") = true]}
+    {- [is_current_dir (v "./") = true]}
+    {- [is_current_dir (v "./a/..") = false]}
+    {- [is_current_dir (v "/.") = false]}
+    {- [is_current_dir (v "\\\\.\\dev\\.") = false] (Windows)}
+    {- [is_current_dir (v "\\\\.\\dev\\.\\") = false] (Windows)}
+    {- [is_current_dir (v "\\\\server\\share\\.") = false] (Windows)}
+    {- [is_current_dir (v "\\\\server\\share\\.\\") = false] (Windows)}
+    {- [is_current_dir (v "C:.") = true] (Windows)}
+    {- [is_current_dir (v "C:./") = true] (Windows)}
+    {- [is_current_dir (v "C:./a/..") = false] (Windows)}}
 
     {2:ex_get_ext {!get_ext}}
 

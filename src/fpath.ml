@@ -200,51 +200,6 @@ let append = if windows then append_windows else append_posix
 let ( / ) = add_seg
 let ( // ) = append
 
-(* Predicates and comparison *)
-
-let is_rel_posix p = p.[0] <> dir_sep_char
-let is_rel_windows p =
-  if is_unc_path_windows p then false else
-  match String.find (Char.equal ':') p with
-  | None -> p.[0] <> dir_sep_char
-  | Some i -> p.[i+1] <> dir_sep_char (* i+1 exists by construction *)
-
-let is_rel = if windows then is_rel_windows else is_rel_posix
-let is_abs p = not (is_rel p)
-
-let is_root_posix p = String.equal p dir_sep || String.equal p "//"
-let is_root_windows p =
-  let _, p = sub_split_volume_windows p in
-  String.Sub.equal_bytes dir_sep_sub p
-
-let is_root = if windows then is_root_windows else is_root_posix
-
-let is_current_dir_posix p = String.equal p dot || String.equal p dot_dir
-let is_current_dir_windows =
-  fun p ->
-    let _, p = sub_split_volume_windows p in
-    String.Sub.equal_bytes p dot_sub ||
-    String.Sub.equal_bytes p dot_dir_sub
-
-let is_current_dir =
-  if windows then is_current_dir_windows else is_current_dir_posix
-
-let is_prefix ~root p =
-  if not (String.is_prefix root p) then false else
-  (* Further check the prefix is segment-based. If [root] ends with a
-     dir_sep nothing more needs to be checked. If it doesn't we need
-     to check that [p]'s suffix is empty or starts with a directory
-     separator. *)
-  let suff_start = String.length root in
-  if root.[suff_start - 1] = dir_sep_char then true else
-  if suff_start = String.length p then true else
-  p.[suff_start] = dir_sep_char
-
-let equal = String.equal
-let compare = String.compare
-
-(* Volume and segments *)
-
 let split_volume_windows p =
   let vol, path = sub_split_volume_windows p in
   String.Sub.to_string vol, String.Sub.to_string path
@@ -266,6 +221,8 @@ let segs_posix p =
 
 let segs = if windows then segs_windows else segs_posix
 
+(* File and directory paths *)
+
 let filename_sub_windows p =
   let _, path = sub_split_volume_windows p in
   match String.Sub.find ~rev:true (Char.equal dir_sep_char) path with
@@ -286,6 +243,29 @@ let filename_posix p =
   | Some i -> String.with_range p ~first:(i + 1)
 
 let filename = if windows then filename_windows else filename_posix
+
+let file_to_dir p = add_seg p ""
+
+let dir_to_file_windows p =
+  let vol, path = sub_split_volume_windows p in
+  if String.Sub.length path = 1 then p else
+  if String.Sub.get_head ~rev:true path <> dir_sep_char then p else
+  String.Sub.(to_string (concat [vol; String.Sub.tail ~rev:true path]))
+
+let dir_to_file_posix p = match String.length p with
+| 1 -> p
+| 2 ->
+    if p.[0] <> dir_sep_char && p.[1] = dir_sep_char
+    then String.of_char p.[0]
+    else p
+| len ->
+    let max = len - 1 in
+    if p.[max] <> dir_sep_char then p else
+    String.with_index_range p ~last:(max - 1)
+
+let dir_to_file = if windows then dir_to_file_windows else dir_to_file_posix
+
+(* Base and parent paths *)
 
 let base_windows p =
   let vol, path = sub_split_volume_windows p in
@@ -313,12 +293,6 @@ let base_posix p = match String.length p with
 
 let base = if windows then base_windows else base_posix
 let name p = filename (base p)
-
-let is_dotfile p =
-  let b = base p in
-  match String.head b with
-  | Some '.' -> b <> dot && b <> dotdot
-  | _ -> false
 
 let parent_windows p =
   let vol, path = sub_split_volume_windows p in
@@ -355,26 +329,19 @@ let parent_posix p = match String.length p with
 
 let parent = if windows then parent_windows else parent_posix
 
-let file_to_dir p = add_seg p ""
+(* Normalization and prefixes *)
 
-let dir_to_file_windows p =
-  let vol, path = sub_split_volume_windows p in
-  if String.Sub.length path = 1 then p else
-  if String.Sub.get_head ~rev:true path <> dir_sep_char then p else
-  String.Sub.(to_string (concat [vol; String.Sub.tail ~rev:true path]))
+let is_prefix ~root p =
+  if not (String.is_prefix root p) then false else
+  (* Further check the prefix is segment-based. If [root] ends with a
+     dir_sep nothing more needs to be checked. If it doesn't we need
+     to check that [p]'s suffix is empty or starts with a directory
+     separator. *)
+  let suff_start = String.length root in
+  if root.[suff_start - 1] = dir_sep_char then true else
+  if suff_start = String.length p then true else
+  p.[suff_start] = dir_sep_char
 
-let dir_to_file_posix p = match String.length p with
-| 1 -> p
-| 2 ->
-    if p.[0] <> dir_sep_char && p.[1] = dir_sep_char
-    then String.of_char p.[0]
-    else p
-| len ->
-    let max = len - 1 in
-    if p.[max] <> dir_sep_char then p else
-    String.with_index_range p ~last:(max - 1)
-
-let dir_to_file = if windows then dir_to_file_windows else dir_to_file_posix
 
 let find_prefix_windows p0 p1 =
   let v0, ps0 = sub_split_volume_windows p0 in
@@ -515,6 +482,44 @@ let relativize ~root p =
           let p = rem_prefix p in
           let rel = List.fold_left (fun acc _ -> dotdot :: acc) [p] root in
           (Some (String.concat ~sep:dir_sep rel))
+
+(* Predicates and comparison *)
+
+let is_rel_posix p = p.[0] <> dir_sep_char
+let is_rel_windows p =
+  if is_unc_path_windows p then false else
+  match String.find (Char.equal ':') p with
+  | None -> p.[0] <> dir_sep_char
+  | Some i -> p.[i+1] <> dir_sep_char (* i+1 exists by construction *)
+
+let is_rel = if windows then is_rel_windows else is_rel_posix
+let is_abs p = not (is_rel p)
+
+let is_root_posix p = String.equal p dir_sep || String.equal p "//"
+let is_root_windows p =
+  let _, p = sub_split_volume_windows p in
+  String.Sub.equal_bytes dir_sep_sub p
+
+let is_root = if windows then is_root_windows else is_root_posix
+
+let is_current_dir_posix p = String.equal p dot || String.equal p dot_dir
+let is_current_dir_windows =
+  fun p ->
+    let _, p = sub_split_volume_windows p in
+    String.Sub.equal_bytes p dot_sub ||
+    String.Sub.equal_bytes p dot_dir_sub
+
+let is_current_dir =
+  if windows then is_current_dir_windows else is_current_dir_posix
+
+let is_dotfile p =
+  let b = base p in
+  match String.head b with
+  | Some '.' -> b <> dot && b <> dotdot
+  | _ -> false
+
+let equal = String.equal
+let compare = String.compare
 
 (* File extensions *)
 

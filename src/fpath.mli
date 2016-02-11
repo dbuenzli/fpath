@@ -510,7 +510,6 @@ end
     {- [segs (v "a/b/") = ["a"; "b"; ""]]}
     {- [segs (v "a/b") = ["a"; "b"]]}
     {- [segs (v "a") = ["a"]]}
-    {- [segs (v "") = ["."]]}
     {- [segs (v "/") = [""; ""]]}
     {- [segs (v "\\\\.\\dev\\") = ["";""]] (Windows)}
     {- [segs (v "\\\\server\\share\\a") = ["";"a"]] (Windows)}

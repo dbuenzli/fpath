@@ -539,7 +539,7 @@ let single_ext_sub seg =
 let ext_sub ?(multi = false) seg =
   if multi then multi_ext_sub seg else single_ext_sub seg
 
-let ext ?multi p = String.Sub.to_string (ext_sub ?multi (filename_sub p))
+let get_ext ?multi p = String.Sub.to_string (ext_sub ?multi (filename_sub p))
 
 let has_ext e p =
   let seg = String.Sub.drop ~sat:eq_ext_sep (filename_sub p) in

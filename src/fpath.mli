@@ -272,10 +272,10 @@ val dump : Format.formatter -> t -> unit
 type ext = string
 (** The type for file extensions. *)
 
-val ext : ?multi:bool -> t -> ext
-(** [ext p] is [p]'s last segment file extension or the empty
+val get_ext : ?multi:bool -> t -> ext
+(** [get_ext p] is [p]'s last segment file extension or the empty
     string if there is no extension. If [multi] is [true] (defaults to
-    [false]), returns the multiple file extension. {{!ex_ext}Examples}. *)
+    [false]), returns the multiple file extension. {{!ex_get_ext}Examples}. *)
 
 val has_ext : ext -> t -> bool
 (** [has_ext e p] is [true] iff [ext p = e || ext ~multi:true p = e].
@@ -676,20 +676,20 @@ end
     {- [relativize (v "../../a") (v "../b")] is [None]}
     {- [relativize (v "../a") (v "../../b")] is [(Some "../../b")]}}
 
-    {2:ex_ext {!ext}}
+    {2:ex_get_ext {!get_ext}}
 
     {ul
-    {- [ext (v "/a/b") = ""]}
-    {- [ext (v "a/.") = ""]}
-    {- [ext (v "a/..") = ""]}
-    {- [ext (v "a/.ocamlinit") = ""]}
-    {- [ext (v "/a/b.") = "."]}
-    {- [ext (v "/a/b.mli") = ".mli"]}
-    {- [ext (v "a.tar.gz") = ".gz"]}
-    {- [ext (v "a/.emacs.d") = ".d"]}
-    {- [ext ~multi:true (v "/a/b.mli") = ".mli"]}
-    {- [ext ~multi:true (v "a.tar.gz") = ".tar.gz"]}
-    {- [ext ~multi:true (v "a/.emacs.d") = ".d"]}}
+    {- [get_ext (v "/a/b") = ""]}
+    {- [get_ext (v "a/.") = ""]}
+    {- [get_ext (v "a/..") = ""]}
+    {- [get_ext (v "a/.ocamlinit") = ""]}
+    {- [get_ext (v "/a/b.") = "."]}
+    {- [get_ext (v "/a/b.mli") = ".mli"]}
+    {- [get_ext (v "a.tar.gz") = ".gz"]}
+    {- [get_ext (v "a/.emacs.d") = ".d"]}
+    {- [get_ext ~multi:true (v "/a/b.mli") = ".mli"]}
+    {- [get_ext ~multi:true (v "a.tar.gz") = ".tar.gz"]}
+    {- [get_ext ~multi:true (v "a/.emacs.d") = ".d"]}}
 
     {2:ex_has_ext {!has_ext}}
 

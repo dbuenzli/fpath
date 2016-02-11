@@ -40,7 +40,7 @@ type t
 (** The type for paths. *)
 
 val v : string -> t
-(** [v s] is the string [s] as path, see {!of_string} for details.
+(** [v s] is the string [s] as path.
 
     @raise Invalid_argument if {!of_string}[ p] is [None]. Use {!of_string}
     to deal with possibly invalid paths (e.g. on user input). *)
@@ -250,16 +250,17 @@ val to_string : t -> string
 
 val of_string : string -> t option
 (** [of_string s] is the string [s] as a path. [None] is returned if
-    there is a ['\x00'] byte in [s] or, on Windows, if this is an
-    invalid UNC path (e.g. ["\\\\"] or ["\\\\a"]). The following
-    transformations are performed:
+    {ul
+    {- [s] or the path following the {{!split_volume}volume} is empty ([""]),
+       expect on Windows UNC paths, see below.}
+    {- [s] has null byte (['\x00']).}
+    {- On Windows, [s] is an invalid UNC path (e.g. ["\\\\"] or ["\\\\a"])}}
+    The following transformations are performed on the string:
     {ul
     {- On Windows any ['/'] occurence is converted to ['\\'] before
        any processing occurs.}
     {- Non-initial empty segments are suppressed;
        ["a//b"] becomes ["a/b"], ["//a////b//"] becomes ["//a/b/"], etc.}
-    {- Empty relative paths are converted to [./]. For example
-       [""] becomes ["./"], ["C:"] becomes ["C:./"], etc.}
     {- On Windows empty absolute UNC paths are completed to
        their root. For example ["\\\\server\\share"] becomes
        ["\\\\server\\share\\"],

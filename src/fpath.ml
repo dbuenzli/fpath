@@ -149,7 +149,7 @@ let sub_last_seg_posix p =
 let sub_last_seg = if windows then sub_last_seg_windows else sub_last_seg_posix
 
 let of_string_windows p =
-  if p = "" then Some dot_dir else
+  if p = "" then None else
   let p = String.map (fun c -> if c = '/' then '\\' else c) p in
   match validate_and_collapse_seps p with
   | None -> None
@@ -157,13 +157,12 @@ let of_string_windows p =
       if is_unc_path_windows p then parse_unc_windows p else
       match String.find (Char.equal ':') p with
       | None -> some
-      | Some i -> Some (if i = String.length p - 1 then p ^ dot_dir else p)
+      | Some i -> if i = String.length p - 1 then None else (Some p)
 
-let of_string_posix p =
-  if p = "" then Some dot_dir else
-  validate_and_collapse_seps p
+let of_string_posix p = if p = "" then None else validate_and_collapse_seps p
 
 let of_string = if windows then of_string_windows else of_string_posix
+
 let to_string p = p
 let pp ppf p = Format.pp_print_string ppf (to_string p)
 let dump ppf p = String.dump ppf (to_string p)

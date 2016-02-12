@@ -19,12 +19,13 @@
        distinguishes {e directory paths}
        (["a/b/"]) from {e file paths} (["a/b"]).}}
 
-    [Fpath] operates on paths without accessing the operating
-    system.
-
     Consult a few {{!tips}important tips}.
 
+    {b Note.} [Fpath] processes paths without accessing the file system.
+
     {e v%%VERSION%% - {{:%%PKG_WWW%% }homepage}} *)
+
+open Astring
 
 (** {1:paths Paths} *)
 
@@ -91,7 +92,7 @@ $(drive):
 val segs : t -> string list
 (** [segs p] is [p]'s {e non-empty} list of segments. Absolute paths have an
     initial empty string added, this allows to recover the path's string with
-    {!Astring.String.concat}[ ~sep:dir_sep]. {{!ex_segs}Examples.}
+    {!String.concat}[ ~sep:dir_sep]. {{!ex_segs}Examples.}
 
     The following invariant holds:
     {ul
@@ -156,24 +157,29 @@ val parent : t -> t
     {b Warning.} [parent p // base p] may not represent [p], use
     {!split_base} for this. *)
 
-(** {1:prefix Normalization and prefixes} *)
+(** {1:norm Normalization} *)
 
 val rem_empty_seg : t -> t
-(** [rem_empty_seg p] removes the last segment of [p] iff it is empty
-    and [p] is not a {{!is_root}root path}. This ensure that if [p]
-    is not a root path and is converted to a string it will not
-    have a trailing {!dir_sep}. Note that this may or may not change [p]'s
-    {{!is_directory}directoryness}.
-    {{!ex_rem_empty_final_seg}Examples}. *)
+(** [rem_empty_seg p] removes the empty segment of [p] if it
+    exists and [p] is not a {{!is_root}root path}. This ensure that if
+    [p] is converted to a string it will not have a trailing
+    {!dir_sep} unless [p] is a root path. Note that this may affect
+    [p]'s {{!is_dir_path}directoryness}.
+    {{!ex_rem_empty_seg}Examples}. *)
 
 val normalize : t -> t
-(** [normalize p] normalizes [p] to a path referring to the same
-    {{!dir_to_file}file} without consulting the filesystem. If [p]
-    is absolute the resulting path has no [.] and [..]
-    segments. If [p] is relative it has no [.] and may only
-    have potential [..] as initial segments. Note that except
-    if the path is a root, the path never has a trailing directory
-    separator. {{!ex_normalize}Examples}. *)
+(** [normalize p] is a path that represents the same path as [p],
+    {{!is_dir_path}directoryness} included, and that has the following
+    properties:
+    {ul
+    {- If [p] is absolute the resulting path has no ["."] and [".."]
+       segments.}
+    {- If [p] is relative the resulting path is either ["./"] or
+       it has no ["."] segments and [".."] segments may only appear as
+       initial segments.}}
+    {{!ex_normalize}Examples}. *)
+
+(** {1:prefix Prefixes, roots and relativization} *)
 
 val is_prefix : root:t -> t -> bool
 (** [is_prefix ~root p] is [true] if [root] is a prefix of [p].  This
@@ -681,16 +687,62 @@ end
     {2:ex_rem_empty_seg {!rem_empty_seg}}
 
     {ul
-    {- [equal (rem_empty_seg @@ v "/a/b") (v "/a/b")]}
-    {- [equal (rem_empty_seg @@ v "/a/b/") (v "/a/b")]}
-    {- [equal (rem_empty_seg @@ v "a/") (v "a")]}
+    {- [equal (rem_empty_seg @@ v ".") (v ".")]}
+    {- [equal (rem_empty_seg @@ v "..") (v "..")]}
+    {- [equal (rem_empty_seg @@ v "../") (v "..")]}
+    {- [equal (rem_empty_seg @@ v "../../") (v "../..")]}
     {- [equal (rem_empty_seg @@ v "/") (v "/")]}
+    {- [equal (rem_empty_seg @@ v "/a/b/") (v "/a/b")]}
+    {- [equal (rem_empty_seg @@ v "/a/b") (v "/a/b")]}
+    {- [equal (rem_empty_seg @@ v "a/") (v "a")]}
+    {- [equal (rem_empty_seg @@ v "a") (v "a")]}
+    {- [equal (rem_empty_seg @@ v "a/.") (v "a/.")]}
+    {- [equal (rem_empty_seg @@ v "a/./") (v "a/.")]}
+    {- [equal (rem_empty_seg @@ v "a/..") (v "a/..")]}
+    {- [equal (rem_empty_seg @@ v "a/../") (v "a/..")]}
+    {- [equal (rem_empty_seg @@ v "a/..b") (v "a/..b")]}
+    {- [equal (rem_empty_seg @@ v "./a") (v "./a")]}
+    {- [equal (rem_empty_seg @@ v "../a") (v "../a")]}
+    {- [equal (rem_empty_seg @@ v "../../a") (v "../../a")]}
     {- [equal (rem_empty_seg @@ v "\\\\server\\share\\")
-       (v "\\\\server\\share\\")]
-       (Windows)}
-    {- [equal (rem_empty_seg @@ v "C:a\\") (v "C:a")] (Windows)}
-    {- [equal (rem_empty_seg @@ v "C:\\") (v "C:\\")] (Windows)}}
+    (v "\\\\server\\share\\")] (Windows)}
+    {- [equal (rem_empty_seg @@ v "C:\\") (v "C:\\")] (Windows)}
+    {- [equal (rem_empty_seg @@ v "C:a\\") (v "C:a")] (Windows)}}
 
+    {2:ex_normalize {!normalize}}
+
+    {ul
+    {- [equal (normalize @@ v ".") (v "./")]}
+    {- [equal (normalize @@ v "..") (v "..")]}
+    {- [equal (normalize @@ v "../") (v "..")]}
+    {- [equal (normalize @@ v "../../") (v "../..")]}
+    {- [equal (normalize @@ v "/") (v "/")]}
+    {- [equal (normalize @@ v "/a/b/") (v "/a/b/")]}
+    {- [equal (normalize @@ v "/a/b") (v "/a/b")]}
+    {- [equal (normalize @@ v "a/") (v "a/")]}
+    {- [equal (normalize @@ v "a") (v "a")]}
+    {- [equal (normalize @@ v "a/.") (v "a/")]}
+    {- [equal (normalize @@ v "a/./") (v "a/")]}
+    {- [equal (normalize @@ v "a/..") (v "./")]}
+    {- [equal (normalize @@ v "a/../") (v "./")]}
+    {- [equal (normalize @@ v "a/..b") (v "a/..b")]}
+    {- [equal (normalize @@ v "./a") (v "a")]}
+    {- [equal (normalize @@ v "../a") (v "../a")]}
+    {- [equal (normalize @@ v "../../a") (v "../../a")]}
+    {- [equal (normalize @@ v "./a/..") (v "./")]}
+    {- [equal (normalize @@ v "/a/b/./..") (v "/a/")]}
+    {- [equal (normalize @@ v "/../..") (v "/")]}
+    {- [equal (normalize @@ v "/a/../..") (v "/")]}
+    {- [equal (normalize @@ v "./../..") (v "../..")]}
+    {- [equal (normalize @@ v "../../a/") (v "../../a/")]}
+    {- [equal (normalize @@ v "/a/b/c/./../../g") (v "/a/g")]}
+    {- [equal (normalize @@ v "/a/b/c/./../../g/") (v "/a/g/")]}
+    {- [equal (normalize @@ v "\\\\?\\UNC\\server\\share\\..")
+       (v "\\\\?\\UNC\\server\\share\\")] (Windows)}
+    {- [equal (normalize @@ v "\\\\server\\share\\")
+    (v "\\\\server\\share\\")] (Windows)}
+    {- [equal (normalize @@ v "C:\\") (v "C:\\")] (Windows)}
+    {- [equal (normalize @@ v "C:a\\") (v "C:a\\")] (Windows)}}
 
     {2:ex_is_prefix {!is_prefix}}
 
@@ -727,19 +779,6 @@ end
     {- [rem_prefix (v "/a/b") (v "/a/b/c")] is [Some (v "c")]}
     {- [rem_prefix (v "/a/b/") (v "/a/b/c")] is [Some (v "c")]}
     {- [rem_prefix (v "a") (v "a/b/c")] is [Some (v "b/c")]}}
-
-    {2:ex_normalize {!normalize}}
-
-    {ul
-    {- [equal (normalize @@ v "./a/..") (v ".")]}
-    {- [equal (normalize @@ v "/a/b/./..") (v "/a")]}
-    {- [equal (normalize @@ v "/../..") (v "/")]}
-    {- [equal (normalize @@ v "/a/../..") (v "/")]}
-    {- [equal (normalize @@ v "./../..") (v "../..")]}
-    {- [equal (normalize @@ v "../../a/") (v "../../a")]}
-    {- [equal (normalize @@ v "/a/b/c/./../../g") (v "/a/g")]}
-    {- [equal (normalize @@ v "\\\\?\\UNC\\server\\share\\..")
-       (v "\\\\?\\UNC\\server\\share\\")] (Windows)}}
 
     {2:ex_rooted {!rooted}}
 

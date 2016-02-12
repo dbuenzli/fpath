@@ -350,43 +350,41 @@ let basename_posix p =
 
 let basename p = if windows then basename_windows p else basename_posix p
 
-(* The parent algorithm is not very smart. It seeks not to change the
+(* The parent algorithm is not very smart. It tries not to change the
    original path too much or deal with normalization.  We simply
-   remove the last non-empty, non-relative, path segment and if the
-   resulting path is empty we return "./". If the last non-empty
+   remove everyting after the last non-empty, non-relative, path segment
+   and if the resulting path is empty we return "./". If the last non-empty
    segment is "." or ".." we then simply postfix "../" *)
 
-let _parent vol p =
+let _parent p =
   let (dir, seg), is_last = split_last_non_empty_seg p in
   let dsep = if is_last then dir_sep_sub else String.Sub.empty in
   match String.Sub.is_empty dir with
   | true ->
-      if not (seg_is_rel_sub seg)
-      then String.Sub.(base_string @@ concat [vol; dot_dir_sub])
-      else String.Sub.(base_string @@ concat [vol; p; dsep; dotdot_dir_sub])
+      if seg_is_rel_sub seg then [p; dsep; dotdot_dir_sub] else [dot_dir_sub]
   | false ->
-      if seg_is_rel_sub seg
-      then String.Sub.(base_string @@ concat [vol; p; dsep; dotdot_dir_sub])
-      else String.Sub.(base_string @@ concat [vol; dir])
+      if seg_is_rel_sub seg then [p; dsep; dotdot_dir_sub] else [dir]
 
 let parent_windows p =
   let vol, path = sub_split_volume_windows p in
   if String.Sub.equal_bytes dir_sep_sub path then (* root *) p else
-  _parent vol path
+  String.Sub.(base_string @@ concat (vol :: _parent path))
 
 let parent_posix p =
   if is_root_posix p then p else
-  _parent String.Sub.empty (String.sub p)
+  String.Sub.(base_string @@ concat (_parent (String.sub p)))
 
 let parent = if windows then parent_windows else parent_posix
 
-(* Normalization and prefixes *)
+(* Normalization *)
 
 let rem_empty_seg_windows p =
   let vol, path = sub_split_volume_windows p in
-  if String.Sub.length path = 1 then p else
-  if String.Sub.get_head ~rev:true path <> dir_sep_char then p else
-  String.Sub.(to_string (concat [vol; String.Sub.tail ~rev:true path]))
+  if String.Sub.equal_bytes dir_sep_sub path then (* root *) p else
+  let dir, last_seg = split_last_seg path in
+  if not (String.Sub.is_empty last_seg) then p else
+  let p = String.Sub.tail ~rev:true dir in
+  String.Sub.(base_string @@ concat [vol; p])
 
 let rem_empty_seg_posix p = match String.length p with
 | 1 -> p
@@ -402,6 +400,80 @@ let rem_empty_seg_posix p = match String.length p with
 let rem_empty_seg =
   if windows then rem_empty_seg_windows else rem_empty_seg_posix
 
+let normalize_rel_segs_rev segs =
+  let rec loop acc = function
+  | "." :: [] -> ("" :: acc) (* final "." remove but preserve directoryness. *)
+  | "." :: rest -> loop acc rest
+  | ".." :: rest ->
+      begin match acc with
+      | ".." :: _ | [] -> loop (".." :: acc) rest
+      | seg :: acc -> (* N.B. seg can't be "." *)
+          match rest with
+          | [] -> ("" :: acc) (* preserve directoryness *)
+          | rest -> loop acc rest
+      end
+  | seg :: rest -> loop (seg :: acc) rest
+  | [] -> acc
+  in
+  loop [] segs
+
+
+let normalize_segs = function
+| "" :: segs -> (* absolute path *)
+    let rec rem_dotdots = function
+    | ".." :: segs -> rem_dotdots segs
+    | [] -> [""]
+    | segs -> segs
+    in
+    "" :: (rem_dotdots (List.rev (normalize_rel_segs_rev segs)))
+| segs ->
+    match List.rev (normalize_rel_segs_rev segs) with
+    | [] | [""] -> ["."; ""]
+    | segs -> segs
+
+(*
+let normalize_segs segs =
+  let rec loop acc = function
+  | "." :: [] -> loop ("" :: acc) []
+  | "." :: rest -> loop acc rest
+  | ".." :: rest ->
+      begin match acc with
+      | "" :: [] (* root *) -> loop acc rest
+      | ".." :: _ -> loop (".." :: acc) rest
+      | seg :: acc ->  loop acc rest
+      | [] -> loop (".." :: []) rest
+      end
+(*  | "" :: [] -> (* suppress trailing slash *) loop acc [] *)
+  | seg :: rest -> loop (seg :: acc) rest
+  | [] ->
+      match List.rev acc with
+      | [] -> [dot_dir]
+      | [""] -> ["";""]
+      | segs -> segs
+  in
+  match segs with
+  | "" :: segs -> (* absolute path *) loop [""] segs
+  | segs -> (* relative path *) loop [] segs
+*)
+
+let normalize_windows p =
+  let vol, path = sub_split_volume_windows p in
+  let path = String.Sub.to_string path in
+  let segs = normalize_segs (String.cuts ~sep:dir_sep path) in
+  let path = String.concat ~sep:dir_sep segs in
+  String.Sub.(to_string (concat [vol; String.sub path]))
+
+let normalize_posix p =
+  let segs = String.cuts ~sep:dir_sep p in
+  let has_volume = String.is_prefix "//" p in
+  let segs = normalize_segs (if has_volume then List.tl segs else segs) in
+  let segs = if has_volume then "" :: segs else segs in
+  String.concat ~sep:dir_sep segs
+
+let normalize = if windows then normalize_windows else normalize_posix
+
+(* Prefixes *)
+
 let is_prefix ~root p =
   if not (String.is_prefix root p) then false else
   (* Further check the prefix is segment-based. If [root] ends with a
@@ -412,7 +484,6 @@ let is_prefix ~root p =
   if root.[suff_start - 1] = dir_sep_char then true else
   if suff_start = String.length p then true else
   p.[suff_start] = dir_sep_char
-
 
 let find_prefix_windows p0 p1 =
   let v0, ps0 = sub_split_volume_windows p0 in
@@ -493,44 +564,6 @@ let rem_prefix ~root p =
   in
   if start >= String.length p then Some dot else
   Some (String.with_range p ~first:start)
-
-let normalize_segs segs =
-  let rec loop acc = function
-  | "." :: rest -> loop acc rest
-  | ".." :: rest ->
-      begin match acc with
-      | "" :: [] (* root *) -> loop acc rest
-      | ".." :: _ -> loop (".." :: acc) rest
-      | seg :: acc ->  loop acc rest
-      | [] -> loop (".." :: []) rest
-      end
-  | "" :: [] -> (* suppress trailing slash *) loop acc []
-  | seg :: rest -> loop (seg :: acc) rest
-  | [] ->
-      match List.rev acc with
-      | [] -> ["."]
-      | [""] -> ["";""]
-      | segs -> segs
-  in
-  match segs with
-  | "" :: segs -> (* absolute path *) loop [""] segs
-  | segs -> (* relative path *) loop [] segs
-
-let normalize_windows p =
-  let vol, path = sub_split_volume_windows p in
-  let path = String.Sub.to_string path in
-  let segs = normalize_segs (String.cuts ~sep:"\\" path) in
-  let path = String.concat ~sep:"\\" segs in
-  String.Sub.(to_string (concat [vol; String.sub path]))
-
-let normalize_posix p =
-  let segs = String.cuts ~sep:"/" p in
-  let has_volume = String.is_prefix "//" p in
-  let segs = normalize_segs (if has_volume then List.tl segs else segs) in
-  let segs = if has_volume then "" :: segs else segs in
-  String.concat ~sep:"/" segs
-
-let normalize = if windows then normalize_windows else normalize_posix
 
 let rooted ~root p =
   let nroot = normalize root in

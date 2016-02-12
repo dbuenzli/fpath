@@ -456,57 +456,95 @@ let parent = test "Fpath.parent" @@ fun () ->
   ()
 
 let rem_empty_seg = test "Fpath.rem_empty_seg" @@ fun () ->
-  eqp (Fpath.rem_empty_seg @@ v "/a/b") (v "/a/b");
-  eqp (Fpath.rem_empty_seg @@ v "/a/b/") (v "/a/b");
-  eqp (Fpath.rem_empty_seg @@ v "a") (v "a");
-  eqp (Fpath.rem_empty_seg @@ v "a/") (v "a");
+  eqp (Fpath.rem_empty_seg @@ v ".") (v ".");
+  eqp (Fpath.rem_empty_seg @@ v "..") (v "..");
+  eqp (Fpath.rem_empty_seg @@ v "../") (v "..");
+  eqp (Fpath.rem_empty_seg @@ v "../../") (v "../..");
   eqp (Fpath.rem_empty_seg @@ v "/") (v "/");
+  eqp (Fpath.rem_empty_seg @@ v "/a/b/") (v "/a/b");
+  eqp (Fpath.rem_empty_seg @@ v "/a/b") (v "/a/b");
+  eqp (Fpath.rem_empty_seg @@ v "a/") (v "a");
+  eqp (Fpath.rem_empty_seg @@ v "a") (v "a");
+  eqp (Fpath.rem_empty_seg @@ v "a/.") (v "a/.");
+  eqp (Fpath.rem_empty_seg @@ v "a/./") (v "a/.");
+  eqp (Fpath.rem_empty_seg @@ v "a/..") (v "a/..");
+  eqp (Fpath.rem_empty_seg @@ v "a/../") (v "a/..");
+  eqp (Fpath.rem_empty_seg @@ v "a/..b") (v "a/..b");
+  eqp (Fpath.rem_empty_seg @@ v "./a") (v "./a");
+  eqp (Fpath.rem_empty_seg @@ v "../a") (v "../a");
+  eqp (Fpath.rem_empty_seg @@ v "../../a") (v "../../a");
   if not windows then begin
     eqp (Fpath.rem_empty_seg @@ v "//") (v "//");
     eqp (Fpath.rem_empty_seg @@ v "//a") (v "//a");
     eqp (Fpath.rem_empty_seg @@ v "//a/") (v "//a");
   end;
   if windows then begin
-    eqp (Fpath.rem_empty_seg @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
+    eqp (Fpath.rem_empty_seg @@ v "\\\\server\\share\\")
+      (v "\\\\server\\share\\");
     eqp (Fpath.rem_empty_seg @@ v "\\\\server\\share\\a\\")
       (v "\\\\server\\share\\a");
     eqp (Fpath.rem_empty_seg @@ v "C:a") (v "C:a");
-    eqp (Fpath.rem_empty_seg @@ v "C:a/") (v "C:a");
+    eqp (Fpath.rem_empty_seg @@ v "C:a\\") (v "C:a");
     eqp (Fpath.rem_empty_seg @@ v "C:\\") (v "C:\\");
   end;
   ()
 
 let normalize = test "Fpath.normalize" @@ fun () ->
-  eqp (Fpath.normalize (v ".")) (v ".");
-  eqp (Fpath.normalize (v "././.")) (v ".");
-  eqp (Fpath.normalize (v "./././")) (v ".");
-  eqp (Fpath.normalize (v "./a/..")) (v ".");
-  eqp (Fpath.normalize (v "./a/../")) (v ".");
-  eqp (Fpath.normalize (v "..")) (v "..");
-  eqp (Fpath.normalize (v "../../../a")) (v "../../../a");
-  eqp (Fpath.normalize (v "../../../a/")) (v "../../../a");
-  eqp (Fpath.normalize (v "/")) (v "/");
-  eqp (Fpath.normalize (v "/.")) (v "/");
-  eqp (Fpath.normalize (v "/..")) (v "/");
-  eqp (Fpath.normalize (v "/./../../.")) (v "/");
-  eqp (Fpath.normalize (v "/./../../.")) (v "/");
-  eqp (Fpath.normalize (v "../../a/..")) (v "../..");
-  eqp (Fpath.normalize (v "../../a/../.")) (v "../..");
-  eqp (Fpath.normalize (v "../../a/.././..")) (v "../../..");
-  eqp (Fpath.normalize (v "../../a/../..")) (v "../../..");
-  eqp (Fpath.normalize (v "/a/b/c/./../../g")) (v "/a/g");
-  eqp (Fpath.normalize (v "./a/b/c/./../../g")) (v "a/g");
-  eqp (Fpath.normalize (v "./a/b/c/./../../g/")) (v "a/g");
-  eqp (Fpath.normalize (v "a/b/c/./../../g")) (v "a/g");
-  eqp (Fpath.normalize (v "a/b/c/./../../g/")) (v "a/g");
+  eqp (Fpath.normalize @@ v ".") (v "./");
+  eqp (Fpath.normalize @@ v "..") (v "..");
+  eqp (Fpath.normalize @@ v "../") (v "../");
+  eqp (Fpath.normalize @@ v "../../") (v "../../");
+  eqp (Fpath.normalize @@ v "/") (v "/");
+  eqp (Fpath.normalize @@ v "/a/b/") (v "/a/b/");
+  eqp (Fpath.normalize @@ v "/a/b") (v "/a/b");
+  eqp (Fpath.normalize @@ v "a/") (v "a/");
+  eqp (Fpath.normalize @@ v "a") (v "a");
+  eqp (Fpath.normalize @@ v "a/.") (v "a/");
+  eqp (Fpath.normalize @@ v "a/./") (v "a/");
+  eqp (Fpath.normalize @@ v "a/..") (v "./");
+  eqp (Fpath.normalize @@ v "a/../") (v "./");
+  eqp (Fpath.normalize @@ v "a/..b") (v "a/..b");
+  eqp (Fpath.normalize @@ v "./a") (v "a");
+  eqp (Fpath.normalize @@ v "../a") (v "../a");
+  eqp (Fpath.normalize @@ v "../../a") (v "../../a");
+  eqp (Fpath.normalize @@ v "./a/..") (v "./");
+  eqp (Fpath.normalize @@ v "/a/b/./..") (v "/a/");
+  eqp (Fpath.normalize @@ v "/../..") (v "/");
+  eqp (Fpath.normalize @@ v "/a/../..") (v "/");
+  eqp (Fpath.normalize @@ v "./../..") (v "../..");
+  eqp (Fpath.normalize @@ v "../../a/") (v "../../a/");
+  eqp (Fpath.normalize @@ v "/a/b/c/./../../g") (v "/a/g");
+  eqp (Fpath.normalize @@ v "/a/b/c/./../../g/") (v "/a/g/");
+  eqp (Fpath.normalize @@ v "a/b/c/./../../g") (v "a/g");
+  eqp (Fpath.normalize @@ v "a/b/c/./../../g/") (v "a/g/");
+  eqp (Fpath.normalize @@ v "././.") (v "./");
+  eqp (Fpath.normalize @@ v "./././") (v "./");
+  eqp (Fpath.normalize @@ v "./a/..") (v "./");
+  eqp (Fpath.normalize @@ v "./a/../") (v "./");
+  eqp (Fpath.normalize @@ v "..") (v "..");
+  eqp (Fpath.normalize @@ v "../../../a") (v "../../../a");
+  eqp (Fpath.normalize @@ v "../../../a/") (v "../../../a/");
+  eqp (Fpath.normalize @@ v "/") (v "/");
+  eqp (Fpath.normalize @@ v "/.") (v "/");
+  eqp (Fpath.normalize @@ v "/..") (v "/");
+  eqp (Fpath.normalize @@ v "/./../../.") (v "/");
+  eqp (Fpath.normalize @@ v "/./../../.") (v "/");
+  eqp (Fpath.normalize @@ v "../../a/..") (v "../../");
+  eqp (Fpath.normalize @@ v "../../a/../.") (v "../../");
+  eqp (Fpath.normalize @@ v "../../a/.././..") (v "../../..");
+  eqp (Fpath.normalize @@ v "../../a/../..") (v "../../..");
+  eqp (Fpath.normalize @@ v "/a/b/c/./../../g") (v "/a/g");
+  eqp (Fpath.normalize @@ v "./a/b/c/./../../g") (v "a/g");
+  eqp (Fpath.normalize @@ v "./a/b/c/./../../g/") (v "a/g/");
   if not windows then begin
-    eqp (Fpath.normalize (v "//a/b/c/./../../g")) (v "//a/g");
+    eqp (Fpath.normalize @@ v "//a/b/c/./../../g") (v "//a/g");
+    eqp (Fpath.normalize @@ v "//a/b/c/./../../g/") (v "//a/g/");
   end;
   if windows then begin
-    eqp (Fpath.normalize (v "C:/a/b/c/./../../g")) (v "C:/a/g");
-    eqp (Fpath.normalize (v "C:/a/b/c/./../../g")) (v "C:/a/g");
-    eqp (Fpath.normalize (v "\\\\?\\UNC\\server\\share\\.."))
-           (v "\\\\?\\UNC\\server\\share\\");
+    eqp (Fpath.normalize @@ v "C:/a/b/c/./../../g") (v "C:/a/g");
+    eqp (Fpath.normalize @@ v "C:/a/b/c/./../../g/") (v "C:/a/g/");
+    eqp (Fpath.normalize @@ v "\\\\?\\UNC\\server\\share\\..")
+      (v "\\\\?\\UNC\\server\\share\\");
   end;
   ()
 
@@ -590,17 +628,17 @@ let rooted = test "Fpath.rooted" @@ fun () ->
   let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
   eq (Fpath.rooted (v "/a/b") (v "c")) (Some (v "/a/b/c"));
   eq (Fpath.rooted (v "/a/b") (v "/a/b/c")) (Some (v "/a/b/c"));
-  eq (Fpath.rooted (v "/a/b") (v "/a/b/c/")) (Some (v "/a/b/c"));
-  eq (Fpath.rooted (v "/a/b") (v "/a/b/c/.")) (Some (v "/a/b/c"));
+  eq (Fpath.rooted (v "/a/b") (v "/a/b/c/")) (Some (v "/a/b/c/"));
+  eq (Fpath.rooted (v "/a/b") (v "/a/b/c/.")) (Some (v "/a/b/c/"));
   eq (Fpath.rooted (v "/a/b") (v "../c")) None;
   eq (Fpath.rooted (v "a/b") (v "c")) (Some (v "a/b/c"));
   eq (Fpath.rooted (v "a/b") (v "/c")) None;
   eq (Fpath.rooted (v "a/b") (v "../c")) None;
-  eq (Fpath.rooted (v "a/b") (v "c/..")) (Some (v "a/b"));
+  eq (Fpath.rooted (v "a/b") (v "c/..")) (Some (v "a/b/"));
   eq (Fpath.rooted (v "a/b") (v "c/../..")) None;
-  eq (Fpath.rooted (v "a/b") (v "c/d/../..")) (Some (v "a/b"));
+  eq (Fpath.rooted (v "a/b") (v "c/d/../..")) (Some (v "a/b/"));
   eq (Fpath.rooted (v "../../a") (v "a")) (Some (v "../../a/a"));
-  eq (Fpath.rooted (v "../../a") (v "a/..")) (Some (v "../../a"));
+  eq (Fpath.rooted (v "../../a") (v "a/..")) (Some (v "../../a/"));
   eq (Fpath.rooted (v "../../a") (v "../../b")) None;
   eq (Fpath.rooted (v "../../a") (v "../../a")) (None);
   ()
@@ -615,17 +653,17 @@ let relativize = test "Fpath.relativize" @@ fun () ->
   in
   relativize (v "/a/b") (v "c") None;
   relativize (v "/a/b") (v "/c") (Some (v "../../c"));
-  relativize (v "/a/b") (v "/c/") (Some (v "../../c"));
+  relativize (v "/a/b") (v "/c/") (Some (v "../../c/"));
   relativize (v "/a/b") (v "/a/b/c") (Some (v "c"));
-  relativize (v "/a/b") (v "/a/b") (Some (v "."));
-  relativize (v "/a/b") (v "/a/b/") (Some (v "."));
+(*  relativize (v "/a/b") (v "/a/b") (Some (v "./"));
+  relativize (v "/a/b") (v "/a/b/") (Some (v "./")); *)
   relativize (v "/a/b/c") (v "/d/e/f") (Some (v "../../../d/e/f"));
   relativize (v "/a/b/c") (v "/a/b/d") (Some (v "../d"));
   relativize (v "a/b") (v "/c") None;
   relativize (v "a/b") (v "c") (Some (v "../../c"));
-  relativize (v "a/b") (v "c/") (Some (v "../../c"));
+(*  relativize (v "a/b") (v "c/") (Some (v "../../c")); *)
   relativize (v "a/b") (v "a/b/c") (Some (v "c"));
-  relativize (v "a/b") (v "a/b") (Some (v "."));
+(*  relativize (v "a/b") (v "a/b") (Some (v ".")); *)
   relativize (v "a/b") (v "a/b/") (Some (v "."));
   relativize (v "../a") (v "b") None;
   relativize (v "../../a") (v "../b") None;

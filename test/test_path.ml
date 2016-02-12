@@ -262,8 +262,11 @@ let to_dir_path = test "Fpath.to_dir_path" @@ fun () ->
 
 let filename = test "Fpath.filename" @@ fun () ->
   eq_str (Fpath.filename @@ v ".") "";
+  eq_str (Fpath.filename @@ v "./") "";
   eq_str (Fpath.filename @@ v "..") "";
   eq_str (Fpath.filename @@ v "../") "";
+  eq_str (Fpath.filename @@ v "../..") "";
+  eq_str (Fpath.filename @@ v "../../") "";
   eq_str (Fpath.filename @@ v "/a/b/") "";
   eq_str (Fpath.filename @@ v "/a/b") "b";
   eq_str (Fpath.filename @@ v "a/") "";
@@ -292,78 +295,163 @@ let filename = test "Fpath.filename" @@ fun () ->
   end;
   ()
 
-let name = test "Fpath.name" @@ fun () ->
-  eq_str (Fpath.name @@ v "/a/b/") "b";
-  eq_str (Fpath.name @@ v "/a/b") "b";
-  eq_str (Fpath.name @@ v "a") "a";
-  eq_str (Fpath.name @@ v "a/") "a";
-  eq_str (Fpath.name @@ v "/") "";
+let split_base = test "Fpath.split_base" @@ fun () ->
+  let eq_split p (d, b) =
+    let d', b' = Fpath.split_base (v p) in
+    eqp (v d) d';
+    eqp (v b) b';
+  in
+  eq_split "." ("./", ".");
+  eq_split "./" ("./", "./");
+  eq_split ".." ("./", "..");
+  eq_split "../" ("./", "../");
+  eq_split "../../" ("../", "../");
+  eq_split ".././" ("../", "./");
+  eq_split "../../../" ("../../", "../");
+  eq_split "/" ("/", "./");
+  eq_split "/a/b/" ("/a/", "b/");
+  eq_split "/a/b" ("/a/", "b");
+  eq_split "a/" ("./", "a/");
+  eq_split "a" ("./", "a");
+  eq_split "a/b" ("a/", "b");
+  eq_split "a/b/" ("a/", "b/");
+  eq_split "a/." ("a/", ".");
+  eq_split "a/.." ("a/", "..");
+  eq_split "a/../.." ("a/../", "..");
+  eq_split "a/..b" ("a/", "..b");
+  eq_split "./a" ("./", "a");
+  eq_split "./a/" ("./", "a/");
+  eq_split "../a" ("../", "a");
+  eq_split "../a/" ("../", "a/");
   if not windows then begin
-    eq_str (Fpath.name @@ v "//") "";
-    eq_str (Fpath.name @@ v "//a/b") "b";
-    eq_str (Fpath.name @@ v "//a/b/") "b";
+    eq_split "//" ("//", "./");
+    eq_split "//a/b" ("//a/", "b");
+    eq_split "//a/b/" ("//a/", "b/");
+    eq_split "//a" ("//", "a");
+    eq_split "//a/" ("//", "a/");
+    eq_split "//a/." ("//a/", ".");
+    eq_split "//a/./" ("//a/", "./");
   end;
   if windows then begin
-    eq_str (Fpath.name @@ v "\\\\server\\share\\a") "a";
-    eq_str (Fpath.name @@ v "\\\\server\\share\\a\\") "a";
-    eq_str (Fpath.name @@ v "\\\\.\\device\\") "";
-    eq_str (Fpath.name @@ v "\\\\.\\device\\a") "a";
-    eq_str (Fpath.name @@ v "C:\\") "";
-    eq_str (Fpath.name @@ v "C:a") "a";
+    eq_split "\\\\server\\share\\a" ("\\\\server\\share\\", "a");
+    eq_split "\\\\.\\device\\" ("\\\\.\\device\\", ".\\");
+    eq_split "\\\\.\\device\\a" ("\\\\.\\device\\", "a");
+    eq_split "\\\\.\\device\\a\\" ("\\\\.\\device\\", "a\\");
+    eq_split "C:\\" ("C:\\", ".\\");
+    eq_split "C:a" ("C:.\\", "a");
   end;
   ()
 
 let base = test "Fpath.base" @@ fun () ->
-  eqp (Fpath.base @@ v "/a/b/") (v "b");
-  eqp (Fpath.base @@ v "/a/b") (v "b");
-  eqp (Fpath.base @@ v "a") (v "a");
-  eqp (Fpath.base @@ v "a/") (v "a");
-  eqp (Fpath.base @@ v "ab") (v "ab");
-  eqp (Fpath.base @@ v "ab/") (v "ab");
   eqp (Fpath.base @@ v ".") (v ".");
+  eqp (Fpath.base @@ v "./") (v "./");
   eqp (Fpath.base @@ v "..") (v "..");
-  eqp (Fpath.base @@ v "/") (v "/");
+  eqp (Fpath.base @@ v "../") (v "../");
+  eqp (Fpath.base @@ v "../../") (v "../");
+  eqp (Fpath.base @@ v ".././") (v "./");
+  eqp (Fpath.base @@ v "../../../") (v "../");
+  eqp (Fpath.base @@ v "/") (v "./");
+  eqp (Fpath.base @@ v "/a/b/") (v "b/");
+  eqp (Fpath.base @@ v "/a/b") (v "b");
+  eqp (Fpath.base @@ v "a/") (v "a/");
+  eqp (Fpath.base @@ v "a") (v "a");
+  eqp (Fpath.base @@ v "a/b") (v "b");
+  eqp (Fpath.base @@ v "a/b/") (v "b/");
+  eqp (Fpath.base @@ v "a/.") (v ".");
+  eqp (Fpath.base @@ v "a/..") (v "..");
+  eqp (Fpath.base @@ v "a/../..") (v "..");
+  eqp (Fpath.base @@ v "a/..b") (v "..b");
+  eqp (Fpath.base @@ v "./a") (v "a");
+  eqp (Fpath.base @@ v "./a/") (v "a/");
+  eqp (Fpath.base @@ v "../a") (v "a");
+  eqp (Fpath.base @@ v "../a/") (v "a/");
   if not windows then begin
-    eqp (Fpath.base @@ v "//") (v "//");
+    eqp (Fpath.base @@ v "//") (v "./");
     eqp (Fpath.base @@ v "//a/b") (v "b");
-    eqp (Fpath.base @@ v "//a/b/") (v "b");
+    eqp (Fpath.base @@ v "//a/b/") (v "b/");
+    eqp (Fpath.base @@ v "//a") (v "a");
+    eqp (Fpath.base @@ v "//a/") (v "a/");
+    eqp (Fpath.base @@ v "//a/.") (v ".");
+    eqp (Fpath.base @@ v "//a/./") (v "./");
   end;
   if windows then begin
-    eqp (Fpath.base @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
     eqp (Fpath.base @@ v "\\\\server\\share\\a") (v "a");
-    eqp (Fpath.base @@ v "\\\\server\\share\\a\\") (v "a");
-    eqp (Fpath.base @@ v "C:\\") (v "C:\\");
-    eqp (Fpath.base @@ v "C:\\") (v "C:\\");
-    eqp (Fpath.base @@ v "C:\\a\\") (v "a");
-    eqp (Fpath.base @@ v "C:\\a") (v "a");
-    eqp (Fpath.base @@ v "C:a\\") (v "a");
+    eqp (Fpath.base @@ v "\\\\.\\device\\") (v ".\\");
+    eqp (Fpath.base @@ v "\\\\.\\device\\a") (v "a");
+    eqp (Fpath.base @@ v "\\\\.\\device\\a\\") (v "a\\");
+    eqp (Fpath.base @@ v "C:\\") (v ".\\");
+    eqp (Fpath.base @@ v "C:a") (v "a");
+  end;
+  ()
+
+let basename = test "Fpath.basename" @@ fun () ->
+  eq_str (Fpath.basename @@ v ".") "";
+  eq_str (Fpath.basename @@ v "..") "";
+  eq_str (Fpath.basename @@ v "../") "";
+  eq_str (Fpath.basename @@ v "../../") "";
+  eq_str (Fpath.basename @@ v "/") "";
+  eq_str (Fpath.basename @@ v "/a/b/") "b";
+  eq_str (Fpath.basename @@ v "/a/b") "b";
+  eq_str (Fpath.basename @@ v "a/") "a";
+  eq_str (Fpath.basename @@ v "a") "a";
+  eq_str (Fpath.basename @@ v "a/.") "";
+  eq_str (Fpath.basename @@ v "a/./") "";
+  eq_str (Fpath.basename @@ v "a/..") "";
+  eq_str (Fpath.basename @@ v "a/..b") "..b";
+  eq_str (Fpath.basename @@ v "./a") "a";
+  eq_str (Fpath.basename @@ v "../a") "a";
+  if not windows then begin
+    eq_str (Fpath.basename @@ v "//") "";
+    eq_str (Fpath.basename @@ v "//a/b") "b";
+    eq_str (Fpath.basename @@ v "//a/b/") "b";
+  end;
+  if windows then begin
+    eq_str (Fpath.basename @@ v "\\\\server\\share\\a") "a";
+    eq_str (Fpath.basename @@ v "\\\\server\\share\\a\\") "a";
+    eq_str (Fpath.basename @@ v "\\\\.\\device\\") "";
+    eq_str (Fpath.basename @@ v "\\\\.\\device\\a") "a";
+    eq_str (Fpath.basename @@ v "C:\\") "";
+    eq_str (Fpath.basename @@ v "C:a") "a";
   end;
   ()
 
 let parent = test "Fpath.parent" @@ fun () ->
-  eqp (Fpath.parent @@ v "/a/b") (v "/a");
-  eqp (Fpath.parent @@ v "/a/b/") (v "/a");
-  eqp (Fpath.parent @@ v "/a") (v "/");
-  eqp (Fpath.parent @@ v "/a/") (v "/");
-  eqp (Fpath.parent @@ v "a/b/") (v "a");
-  eqp (Fpath.parent @@ v "a/b") (v "a");
-  eqp (Fpath.parent @@ v "a") (v ".");
-  eqp (Fpath.parent @@ v "a/") (v ".");
-  eqp (Fpath.parent @@ v ".") (v ".");
-  eqp (Fpath.parent @@ v "..") (v ".");
+  eqp (Fpath.parent @@ v ".") (v "./../");
+  eqp (Fpath.parent @@ v "..") (v "../../");
+  eqp (Fpath.parent @@ v "../") (v "../../");
+  eqp (Fpath.parent @@ v "../../") (v "../../../");
   eqp (Fpath.parent @@ v "/") (v "/");
-  eqp (Fpath.parent @@ v "/aab") (v "/");
+  eqp (Fpath.parent @@ v "/a/b/") (v "/a/");
+  eqp (Fpath.parent @@ v "/a/b") (v "/a/");
+  eqp (Fpath.parent @@ v "a/") (v "./");
+  eqp (Fpath.parent @@ v "a") (v "./");
+  eqp (Fpath.parent @@ v "a/.") (v "a/./../");
+  eqp (Fpath.parent @@ v "a/./") (v "a/./../");
+  eqp (Fpath.parent @@ v "a/..") (v "a/../../");
+  eqp (Fpath.parent @@ v "a/../") (v "a/../../");
+  eqp (Fpath.parent @@ v "a/..b") (v "a/");
+  eqp (Fpath.parent @@ v "./a") (v "./");
+  eqp (Fpath.parent @@ v "../a") (v "../");
+  eqp (Fpath.parent @@ v "../../a") (v "../../");
   if not windows then begin
     eqp (Fpath.parent @@ v "//") (v "//");
-    eqp (Fpath.parent @@ v "//a/b") (v "//a");
-    eqp (Fpath.parent @@ v "//a/b/") (v "//a");
+    eqp (Fpath.parent @@ v "//.") (v "//./../");
+    eqp (Fpath.parent @@ v "//a/b") (v "//a/");
+    eqp (Fpath.parent @@ v "//a/b/") (v "//a/");
+    eqp (Fpath.parent @@ v "//a/b/..") (v "//a/b/../../");
+    eqp (Fpath.parent @@ v "//a/b/../") (v "//a/b/../../");
     eqp (Fpath.parent @@ v "//a") (v "//");
     eqp (Fpath.parent @@ v "//abcd") (v "//");
   end;
   if windows then begin
     eqp (Fpath.parent @@ v "\\\\server\\share\\") (v "\\\\server\\share\\");
-    eqp (Fpath.parent @@ v "C:a") (v "C:.");
+    eqp (Fpath.parent @@ v "C:a") (v "C:.\\");
     eqp (Fpath.parent @@ v "C:\\") (v "C:\\");
+    eqp (Fpath.parent @@ v "C:\\a\\b\\") (v "C:\\a\\");
+    eqp (Fpath.parent @@ v "C:\\a\\b") (v "C:\\a\\");
+    eqp (Fpath.parent @@ v "C:a\\b\\") (v "C:a\\");
+    eqp (Fpath.parent @@ v "C:a\\b") (v "C:a\\");
+    eqp (Fpath.parent @@ v "C:a\\..") (v "C:a\\..\\..\\");
   end;
   ()
 
@@ -797,8 +885,9 @@ let suite = suite "Fpath module"
       is_file_path;
       to_dir_path;
       filename;
-      name;
+      split_base;
       base;
+      basename;
       parent;
       rem_empty_seg;
       normalize;

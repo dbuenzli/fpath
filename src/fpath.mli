@@ -42,8 +42,8 @@ type t
 val v : string -> t
 (** [v s] is the string [s] as path.
 
-    @raise Invalid_argument if {!of_string}[ p] is [None]. Use {!of_string}
-    to deal with possibly invalid paths (e.g. on user input). *)
+    @raise Invalid_argument if [s] is not a {{!of_string}valid path}. Use
+    {!of_string} to deal with foreign input and errors. *)
 
 val add_seg : t -> string -> t
 (** [add_seg p seg] adds [seg] at the end of [p]. If [seg] is [""]
@@ -86,13 +86,12 @@ $(drive):
 ]}
     The following invariant holds:
     {ul
-    {- [equal (v (vol ^ (to_string q))) p]}}
-    {b Warning.} [equal (append (v vol) q) p] does not hold. *)
+    {- [equal (v (vol ^ (to_string q))) p]}} *)
 
 val segs : t -> string list
 (** [segs p] is [p]'s {e non-empty} list of segments. Absolute paths have an
-    initial empty string added, this allows to recover the path with
-    {!String.concat}[ ~sep:dir_sep]. {{!ex_segs}Examples.}
+    initial empty string added, this allows to recover the path's string with
+    {!Astring.String.concat}[ ~sep:dir_sep]. {{!ex_segs}Examples.}
 
     The following invariant holds:
     {ul
@@ -124,20 +123,38 @@ val filename : t -> string
 
 (** {1:parentbase Base and parent paths} *)
 
-val name : t -> string
-(** [name p] is the name of [p]. This is the last {e non-empty} segment of
-    [p] or the empty string if [p] is {!root}. See also {!filename} and
-    {!base}. {{!ex_name}Examples}. *)
+val split_base : t -> t * t
+(** [split_base p] splits [p] into a directory [d] and a {e relative}
+    base path [b] such that:
+    {ul
+    {- [b] is a relative path that contains the segments of [p]
+       that start at the last non-empty segment. This means
+       that [b] has a {e single} non-empty segment, and preserves
+       {{!is_dir_path}directoryness} of [p]. If [p] is a
+       {{!is_root}root path} there are no such segments and [b]
+       is ["./"].}
+    {- [d] is a {{!is_dir_path}directory} such that [d // b]
+       represents the same path as [p] (it may however differ
+       syntactically when converted to a string).}}
+
+    {{!ex_split_base}Examples}. *)
 
 val base : t -> t
-(** [base p] is the path made of the last {e non-empty} segment of
-    [p] or [p] itself on root paths. See also {!name}. {{!ex_base}Examples}. *)
+(** [base p] is [snd (split_base p)]. *)
+
+val basename : t -> string
+(** [basename p] is the last non-empty, non-relative (i.e. not ["."]
+    or [".."]) segment of [p] or the empty string. The latter occurs on
+    {{!is_root}root paths} and on paths whose last non-empty segment is
+    relative. See also {!filename} and {!base}. {{!ex_basename}Examples}. *)
 
 val parent : t -> t
-(** [parent p] is the parent path of [p]. This is defined as [p] without
-    its last {e non-empty} segment or [p] if there is no such segment
-    or [.] for a single segment relative path.
-    {{!ex_parent}Examples}. *)
+(** [parent p] is a {{!is_dir_path}directory path} that contains [p].
+    If [p] is a {{!is_root}root path} this is [p] itself.
+    {{!ex_parent}Examples}.
+
+    {b Warning.} [parent p // base p] may not represent [p], use
+    {!split_base} for this. *)
 
 (** {1:prefix Normalization and prefixes} *)
 
@@ -522,6 +539,7 @@ end
     {- [is_dir_path (v ".") = true]}
     {- [is_dir_path (v "..") = true]}
     {- [is_dir_path (v "../") = true]}
+    {- [is_dir_path (v "/") = true]}
     {- [is_dir_path (v "/a/b/") = true]}
     {- [is_dir_path (v "/a/b") = false]}
     {- [is_dir_path (v "a/") = true]}
@@ -529,7 +547,6 @@ end
     {- [is_dir_path (v "a/.") = true]}
     {- [is_dir_path (v "a/..") = true]}
     {- [is_dir_path (v "a/..b") = false]}
-    {- [is_dir_path (v "/") = true]}
     {- [is_dir_path (v "C:\\") = true] (Windows)}
     {- [is_dir_path (v "C:a") = false] (Windows)}}
 
@@ -539,6 +556,7 @@ end
     {- [is_file_path (v ".") = false]}
     {- [is_file_path (v "..") = false]}
     {- [is_file_path (v "../") = false]}
+    {- [is_file_path (v "/") = false]}
     {- [is_file_path (v "/a/b/") = false]}
     {- [is_file_path (v "/a/b") = true]}
     {- [is_file_path (v "a/") = false]}
@@ -546,24 +564,23 @@ end
     {- [is_file_path (v "a/.") = false]}
     {- [is_file_path (v "a/..") = false]}
     {- [is_file_path (v "a/..b") = true]}
-    {- [is_file_path (v "/") = false]}
     {- [is_file_path (v "C:\\") = false] (Windows)}
     {- [is_file_path (v "C:a") = true] (Windows)}}
 
     {2:ex_to_dir_path {!to_dir_path}}
 
     {ul
-    {- [equal (to_dir_path @@ v ".") = (v "./")]}
-    {- [equal (to_dir_path @@ v "..") = (v "../")]}
-    {- [equal (to_dir_path @@ v "../") = (v "../")]}
-    {- [equal (to_dir_path @@ v "/a/b/") = (v "/a/b/")]}
-    {- [equal (to_dir_path @@ v "/a/b") = (v "/a/b/")]}
-    {- [equal (to_dir_path @@ v "a/") = (v "a/")]}
-    {- [equal (to_dir_path @@ v "a") = (v "a/")]}
-    {- [equal (to_dir_path @@ v "a/.") = (v "a/./")]}
-    {- [equal (to_dir_path @@ v "a/..") = (v "a/../")]}
-    {- [equal (to_dir_path @@ v "a/..b") = (v "a/..b/")]}
-    {- [equal (to_dir_path @@ v "/") = (v "/")]}
+    {- [equal (to_dir_path @@ v ".") (v "./")]}
+    {- [equal (to_dir_path @@ v "..") (v "../")]}
+    {- [equal (to_dir_path @@ v "../") (v "../")]}
+    {- [equal (to_dir_path @@ v "/") (v "/")]}
+    {- [equal (to_dir_path @@ v "/a/b/") (v "/a/b/")]}
+    {- [equal (to_dir_path @@ v "/a/b") (v "/a/b/")]}
+    {- [equal (to_dir_path @@ v "a/") (v "a/")]}
+    {- [equal (to_dir_path @@ v "a") (v "a/")]}
+    {- [equal (to_dir_path @@ v "a/.") (v "a/./")]}
+    {- [equal (to_dir_path @@ v "a/..") (v "a/../")]}
+    {- [equal (to_dir_path @@ v "a/..b") (v "a/..b/")]}
     {- [equal (to_dir_path @@ v "\\\\server\\share\\")
        (v "\\\\server\\share\\")]
        (Windows)}
@@ -574,8 +591,11 @@ end
 
     {ul
     {- [filename (v ".") = ""]}
+    {- [filename (v "./") = ""]}
     {- [filename (v "..") = ""]}
     {- [filename (v "../") = ""]}
+    {- [filename (v "../..") = ""]}
+    {- [filename (v "/") = ""]}
     {- [filename (v "/a/b/") = ""]}
     {- [filename (v "/a/b") = "b"]}
     {- [filename (v "a/") = ""]}
@@ -583,53 +603,80 @@ end
     {- [filename (v "a/.") = ""]}
     {- [filename (v "a/..") = ""]}
     {- [filename (v "a/..b") = "..b"]}
-    {- [filename (v "/") = ""]}
     {- [filename (v "C:\\") = ""] (Windows)}
     {- [filename (v "C:a") = "a"] (Windows)}}
 
-    {2:ex_name {!name}}
+    {2:ex_split_base {!split_base}}
 
     {ul
-    {- [name (v "/a/b/") = "b"]}
-    {- [name (v "/a/b") = "b"]}
-    {- [name (v "a") = "a"]}
-    {- [name (v "a/") = "a"]}
-    {- [name (v "/") = ""]}
-    {- [name (v "C:\\") = ""] (Windows)}
-    {- [name (v "C:a") = "a"] (Windows)}}
+    {- [(split_base @@ v ".") = (v "./"), (v ".")]}
+    {- [(split_base @@ v "./") = (v "./"), (v "./")]}
+    {- [(split_base @@ v "..") = (v "./"), (v "..")]}
+    {- [(split_base @@ v "../") = (v "./"), (v "../")]}
+    {- [(split_base @@ v "../../") = (v "../"), (v "../")]}
+    {- [(split_base @@ v ".././") = (v "../"), (v "./")]}
+    {- [(split_base @@ v "../../../") = (v "../../"), (v "../")]}
+    {- [(split_base @@ v "/") = (v "/"), (v "./")]}
+    {- [(split_base @@ v "/a/b/") = (v "/a/"), (v "b/")]}
+    {- [(split_base @@ v "/a/b") = (v "/a/"), (v "b")]}
+    {- [(split_base @@ v "a/") = (v "./"), (v "a/")]}
+    {- [(split_base @@ v "a") = (v "./"), (v "a")]}
+    {- [(split_base @@ v "a/b") = (v "a/"), (v "b")]}
+    {- [(split_base @@ v "a/b/") = (v "a/b/"), (v "b/")]}
+    {- [(split_base @@ v "a/.") = (v "a/"), (v ".")]}
+    {- [(split_base @@ v "a/..") = (v "a/"), (v "..")]}
+    {- [(split_base @@ v "a/../..") = (v "a/../"), (v "..")]}
+    {- [(split_base @@ v "a/..b") = (v "a/"), (v "..b")]}
+    {- [(split_base @@ v "./a") = (v "./"), (v "a")]}
+    {- [(split_base @@ v "./a/") = (v "./"), (v "a/")]}
+    {- [(split_base @@ v "../a") = (v "../"), (v "a")]}
+    {- [(split_base @@ v "../a/") = (v "../"), (v "a/")]}}
 
-    {2:ex_base {!base}}
+    {2:ex_basename {!basename}}
 
     {ul
-    {- [equal (base @@ v "/a/b/") (v "b")]}
-    {- [equal (base @@ v "/a/b") (v "b")]}
-    {- [equal (base @@ v "a") (v "a")]}
-    {- [equal (base @@ v ".") (v ".")]}
-    {- [equal (base @@ v "..") (v "..")]}
-    {- [equal (base @@ v "/") (v "/")]}
-    {- [equal (base @@ v "\\\\server\\share\\") (v "\\\\server\\share\\")]
-       (Windows)}
-    {- [equal (base @@ v "C:\\") (v "C:\\")] (Windows)}}
+    {- [basename (v ".") = ""]}
+    {- [basename (v "..") = ""]}
+    {- [basename (v "../") = ""]}
+    {- [basename (v "../../") = ""]}
+    {- [basename (v "/") = ""]}
+    {- [basename (v "/a/b/") = "b"]}
+    {- [basename (v "/a/b") = "b"]}
+    {- [basename (v "a/") = "a"]}
+    {- [basename (v "a") = "a"]}
+    {- [basename (v "a/.") = ""]}
+    {- [basename (v "a/./") = ""]}
+    {- [basename (v "a/..") = ""]}
+    {- [basename (v "a/..b") = "..b"]}
+    {- [basename (v "./a") = "a"]}
+    {- [basename (v "../a") = "a"]}
+    {- [basename (v "C:\\") = ""] (Windows)}
+    {- [basename (v "C:a") = "a"] (Windows)}}
 
     {2:ex_parent {!parent}}
 
     {ul
-    {- [equal (parent @@ v "/a/b") (v "/a")]}
-    {- [equal (parent @@ v "/a/b/") (v "/a")]}
-    {- [equal (parent @@ v "/a") (v "/")]}
-    {- [equal (parent @@ v "/a/") (v "/")]}
-    {- [equal (parent @@ v "a/b/") (v "a")]}
-    {- [equal (parent @@ v "a/b") (v "a")]}
-    {- [equal (parent @@ v "a") (v ".")]}
-    {- [equal (parent @@ v "a/") (v ".")]}
-    {- [equal (parent @@ v ".") (v ".")]}
-    {- [equal (parent @@ v "..") (v ".")]}
+    {- [equal (parent @@ v ".") (v "./../")]}
+    {- [equal (parent @@ v "..") (v "../../")]}
+    {- [equal (parent @@ v "../") (v "../../")]}
+    {- [equal (parent @@ v "../../") (v "../../../")]}
     {- [equal (parent @@ v "/") (v "/")]}
+    {- [equal (parent @@ v "/a/b/") (v "/a/")]}
+    {- [equal (parent @@ v "/a/b") (v "/a/")]}
+    {- [equal (parent @@ v "a/") (v "./")]}
+    {- [equal (parent @@ v "a") (v "./")]}
+    {- [equal (parent @@ v "a/.") (v "a/./../")]}
+    {- [equal (parent @@ v "a/./") (v "a/./../")]}
+    {- [equal (parent @@ v "a/..") (v "a/../../")]}
+    {- [equal (parent @@ v "a/../") (v "a/../../")]}
+    {- [equal (parent @@ v "a/..b") (v "a/")]}
+    {- [equal (parent @@ v "./a") (v "./")]}
+    {- [equal (parent @@ v "../a") (v "../")]}
+    {- [equal (parent @@ v "../../a") (v "../../")]}
     {- [equal (parent @@ v "\\\\server\\share\\") (v "\\\\server\\share\\")]
        (Windows)}
-    {- [equal (parent @@ v "C:a") (v "C:.")] (Windows)}
-    {- [equal (parent @@ v "C:\\") (v "C:\\")] (Windows)}}
-
+    {- [equal (parent @@ v "C:\\") (v "C:\\")] (Windows)}
+    {- [equal (parent @@ v "C:a") (v "C:.\\")] (Windows)}}
 
     {2:ex_rem_empty_seg {!rem_empty_seg}}
 
@@ -641,7 +688,7 @@ end
     {- [equal (rem_empty_seg @@ v "\\\\server\\share\\")
        (v "\\\\server\\share\\")]
        (Windows)}
-    {- [equal (rem_empty_seg @@ v "C:a/") (v "C:a")] (Windows)}
+    {- [equal (rem_empty_seg @@ v "C:a\\") (v "C:a")] (Windows)}
     {- [equal (rem_empty_seg @@ v "C:\\") (v "C:\\")] (Windows)}}
 
 

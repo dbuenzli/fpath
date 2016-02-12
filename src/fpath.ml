@@ -32,6 +32,8 @@ let dot_dir = dot ^ dir_sep
 let dot_dir_sub = String.sub dot_dir
 let dotdot = ".."
 let dotdot_sub = String.sub dotdot
+let dotdot_dir = dotdot ^ dir_sep
+let dotdot_dir_sub = String.sub dotdot_dir
 
 let validate_and_collapse_seps p =
   (* collapse non-initial sequences of [dir_sep] to a single one and checks
@@ -133,6 +135,11 @@ let sub_split_volume_windows p =
       then split_before (bslash ~start:((bslash ~start:(j + 1)) + 1))
       else split_before (bslash ~start:(j + 1))
   | _ -> split_before j
+
+let is_root_posix p = String.equal p dir_sep || String.equal p "//"
+let is_root_windows p =
+  let _, p = sub_split_volume_windows p in
+  String.Sub.equal_bytes dir_sep_sub p
 
 let sub_last_seg_windows p =
   let _, path = sub_split_volume_windows p in
@@ -250,65 +257,126 @@ let filename p = match String.Sub.to_string (sub_last_seg p) with
 
 (* Base and parent paths *)
 
-let base_windows p =
+let not_dir_sep c = c <> dir_sep_char
+let split_last_seg p = String.Sub.span ~rev:true ~sat:not_dir_sep p
+let drop_last_seg p = String.Sub.drop ~rev:true ~sat:not_dir_sep p
+let split_last_non_empty_seg p =
+  let (dir, last_seg as r) = split_last_seg p in
+  match String.Sub.is_empty last_seg with
+  | false -> r, true
+  | true -> split_last_seg (String.Sub.tail ~rev:true dir), false
+
+let seg_is_rel = function "." | ".." -> true | _ -> false
+let seg_is_rel_sub seg =
+  String.Sub.(equal_bytes dot_sub seg || equal_bytes dotdot_sub seg)
+
+let split_base_windows p =
   let vol, path = sub_split_volume_windows p in
-  if String.Sub.length path = 1 then p else
-  let path =
-    if String.Sub.get_head ~rev:true path <> dir_sep_char then path else
-    String.Sub.tail ~rev:true path
+  if String.Sub.equal_bytes dir_sep_sub path then (* root *) p, dot_dir else
+  let dir, last_seg = split_last_seg path in
+  match String.Sub.is_empty dir with
+  | true -> (* single seg *)
+      String.Sub.base_string (String.Sub.append vol dot_dir_sub),
+      String.Sub.to_string path
+  | false ->
+      match String.Sub.is_empty last_seg with
+      | false ->
+          String.Sub.base_string (String.Sub.append vol dir),
+          String.Sub.to_string last_seg
+      | true ->
+          let dir_file = String.Sub.tail ~rev:true dir in
+          let dir, dir_last_seg = split_last_seg dir_file in
+          match String.Sub.is_empty dir with
+          | true ->
+              String.Sub.base_string (String.Sub.append vol dot_dir_sub),
+              String.Sub.to_string path
+          | false ->
+              String.Sub.base_string (String.Sub.append vol dir),
+              String.Sub.to_string (String.Sub.extend dir_last_seg)
+
+let split_base_posix p =
+  if is_root_posix p then p, dot_dir else
+  let dir, last_seg = split_last_seg (String.sub p) in
+  match String.Sub.is_empty dir with
+  | true -> (* single seg *) dot_dir, p
+  | false ->
+      match String.Sub.is_empty last_seg with
+      | false -> String.Sub.to_string dir, String.Sub.to_string last_seg
+      | true ->
+          let dir_file = String.Sub.tail ~rev:true dir in
+          let dir, dir_last_seg = split_last_seg dir_file in
+          match String.Sub.is_empty dir with
+          | true -> dot_dir, p
+          | false ->
+              String.Sub.to_string dir,
+              String.Sub.to_string (String.Sub.extend dir_last_seg)
+
+let split_base = if windows then split_base_windows else split_base_posix
+
+let base p = snd (split_base p)
+
+let basename_windows p =
+  let vol, path = sub_split_volume_windows p in
+  if String.Sub.equal_bytes dir_sep_sub path then (* root *) "" else
+  let basename =
+    let dir, last_seg = split_last_seg path in
+    match String.Sub.is_empty dir with
+    | true -> (* single seg *) String.Sub.to_string path
+    | false ->
+        match String.Sub.is_empty last_seg with
+        | false -> String.Sub.to_string last_seg
+        | true ->
+            let dir_file = String.Sub.tail ~rev:true dir in
+            let _, dir_last_seg = split_last_seg dir_file in
+            String.Sub.to_string dir_last_seg
   in
-  match String.Sub.find ~rev:true (Char.equal dir_sep_char) path with
-  | None -> String.Sub.to_string path
-  | Some c -> String.Sub.(to_string (extent (stop c) (stop path)))
+  match basename with "." | ".." -> "" | basename -> basename
 
-let base_posix p = match String.length p with
-| 1 -> p
-| 2 ->
-    if p.[1] = dir_sep_char
-    then (if p.[0] = dir_sep_char then p else String.of_char p.[0])
-    else (if p.[0] = dir_sep_char then String.of_char p.[1] else p)
-| len ->
-  let max = String.length p - 1 in
-  let start = if p.[max] = dir_sep_char then max - 1 else max in
-  match String.find ~rev:true ~start (Char.equal dir_sep_char) p with
-  | None -> if start = max then p else String.with_index_range p ~last:(max - 1)
-  | Some i -> String.with_index_range p ~first:(i + 1) ~last:start
+let basename_posix p =
+  if p = dir_sep || p = "//" then (* root *) "" else
+  let basename =
+    let dir, last_seg = split_last_seg (String.sub p) in
+    match String.Sub.is_empty dir with
+    | true -> (* single seg *) p
+    | false ->
+        match String.Sub.is_empty last_seg with
+        | false -> String.Sub.to_string last_seg
+        | true ->
+            let dir_file = String.Sub.tail ~rev:true dir in
+            let _, dir_last_seg = split_last_seg dir_file in
+            String.Sub.to_string dir_last_seg
+  in
+  match basename with "." | ".." -> "" | basename -> basename
 
-let base = if windows then base_windows else base_posix
-let name p = filename (base p)
+let basename p = if windows then basename_windows p else basename_posix p
+
+(* The parent algorithm is not very smart. It seeks not to change the
+   original path too much or deal with normalization.  We simply
+   remove the last non-empty, non-relative, path segment and if the
+   resulting path is empty we return "./". If the last non-empty
+   segment is "." or ".." we then simply postfix "../" *)
+
+let _parent vol p =
+  let (dir, seg), is_last = split_last_non_empty_seg p in
+  let dsep = if is_last then dir_sep_sub else String.Sub.empty in
+  match String.Sub.is_empty dir with
+  | true ->
+      if not (seg_is_rel_sub seg)
+      then String.Sub.(base_string @@ concat [vol; dot_dir_sub])
+      else String.Sub.(base_string @@ concat [vol; p; dsep; dotdot_dir_sub])
+  | false ->
+      if seg_is_rel_sub seg
+      then String.Sub.(base_string @@ concat [vol; p; dsep; dotdot_dir_sub])
+      else String.Sub.(base_string @@ concat [vol; dir])
 
 let parent_windows p =
   let vol, path = sub_split_volume_windows p in
-  let path =
-    if String.Sub.get_head ~rev:true path <> dir_sep_char then path else
-    String.Sub.tail ~rev:true path
-  in
-  if String.Sub.is_empty path then p else
-  let not_sep c = c <> dir_sep_char in
-  let par = String.Sub.drop ~rev:true ~sat:not_sep path in
-  let par = match String.Sub.length par with
-  | 0 -> dot_sub
-  | 1 -> par (* root *)
-  | _ -> String.Sub.tail ~rev:true par
-  in
-  String.Sub.(to_string @@ concat [vol; par])
+  if String.Sub.equal_bytes dir_sep_sub path then (* root *) p else
+  _parent vol path
 
-let parent_posix p = match String.length p with
-| 1 -> if p.[0] = dir_sep_char then dir_sep else dot
-| 2 ->
-    if p.[0] <> dir_sep_char then dot else
-    if p.[1] = dir_sep_char then "//" else dir_sep
-| len ->
-    let max = len - 1 in
-    let stop = if p.[max] = dir_sep_char then max else len in
-    let sub = String.sub p ~stop in
-    let not_sep c = c <> dir_sep_char in
-    let dir = String.Sub.drop ~rev:true ~sat:not_sep sub in
-    match String.Sub.length dir with
-    | 0 -> dot
-    | 1 -> dir_sep
-    | 2 when p.[0] = dir_sep_char (* volume *) -> "//"
-    | _ -> String.Sub.(to_string (tail ~rev:true dir))
+let parent_posix p =
+  if is_root_posix p then p else
+  _parent String.Sub.empty (String.sub p)
 
 let parent = if windows then parent_windows else parent_posix
 
@@ -497,11 +565,6 @@ let is_rel_windows p =
 
 let is_rel = if windows then is_rel_windows else is_rel_posix
 let is_abs p = not (is_rel p)
-
-let is_root_posix p = String.equal p dir_sep || String.equal p "//"
-let is_root_windows p =
-  let _, p = sub_split_volume_windows p in
-  String.Sub.equal_bytes dir_sep_sub p
 
 let is_root = if windows then is_root_windows else is_root_posix
 

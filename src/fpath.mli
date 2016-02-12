@@ -231,36 +231,45 @@ val relativize : root:t -> t -> t option
 (** {1:predicates Predicates and comparison} *)
 
 val is_rel : t -> bool
-(** [is_rel p] is [true] iff [p] is a relative path. *)
+(** [is_rel p] is [true] iff [p] is a relative path, i.e. the root
+    directory separator is missing in [p]. *)
 
 val is_abs : t -> bool
-(** [is_abs p] is [true] iff [p] is an absolute path. *)
+(** [is_abs p] is [true] iff [p] is an absolute path, i.e. the root
+    directory separator is present in [p]. *)
 
 val is_root : t -> bool
-(** [is_root p] is [true] if [p] is a root directory, that is
-    an absolute path with a single empty segment.
+(** [is_root p] is [true] iff [p] is a root directory, i.e. [p] has the
+    root directory separator and a single, empty, segment.
     {{!ex_is_root}Examples}.
 
-    {b Warning.} This is a structural test and will return [false]
-    e.g. on ["/a/.."]. {!normalize} the path before testing to avoid
-    this problem. *)
+    {b Warning.} By definition this is a structural test. For example it will
+    return [false] on ["/a/.."] or ["/.."]. {{!normalize}Normalizing}
+    the path before testing avoids this problem. *)
 
 val is_current_dir : t -> bool
 (** [is_current_dir p] is true iff [p] is the current relative directory,
     i.e. either ["."] or ["./"]. {{!ex_is_current_dir}Examples}.
 
-    {b Warning.} This is a structural test and will return [false],
-    e.g. on ["./a/.."]. {!normalize} the path before testing to avoid
-    this problem. *)
+    {b Warning.} By definition this is a structural test. For example it will
+    return [false] on ["./a/.."] or ["./."]. {{!normalize}Normalizing} the
+    path before testing avoids this problem. *)
 
 val is_dotfile : t -> bool
-(** [is_dotfile p] is [true] iff [p]'s {!name} is not
-    ["."] or [".."] and starts with a [.]. *)
+(** [is_dotfile p] is [true] iff [p]'s last non-empty segment is not
+    ["."] or [".."] and starts with a ['.']. {{!ex_is_dotfile}Examples}.
+
+    {b Warning.} By definition this is a structural test. For example it will
+    return [false] on [".ssh/."]. {{!normalize}Normalizing} the
+    path before testing avoids this problem. *)
 
 val equal : t -> t -> bool
 (** [equal p p'] is [true] if [p] and [p'] have the same volume
-    are both relative or absolute and have the same segments. This
-    is a byte level comparison. *)
+    are both relative or absolute and have the same segments.
+
+    {b Warning.} By definition this is a structural test. For example
+    [equal (v "./") (v "a/..")] is [false]. {{!normalize}Normalizing}
+    the paths before testing avoids this problem. *)
 
 val compare : t  -> t -> int
 (** [compare p p'] is a total order on paths compatible with {!equal}. *)
@@ -268,8 +277,8 @@ val compare : t  -> t -> int
 (** {1:conversions Conversions and pretty printing} *)
 
 val to_string : t -> string
-(** [to_string p] is the path [p] as a string. This path can
-    be safely read back by {!v}. *)
+(** [to_string p] is the path [p] as a string. The result can
+    be safely converted back with {!v}. *)
 
 val of_string : string -> t option
 (** [of_string s] is the string [s] as a path. [None] is returned if
@@ -483,6 +492,10 @@ end
 (** {1:tips Tips}
 
     {ul
+    {- The documentation often talks about the last non-empty segment of
+       a path. This usually means that we don't care whether the path
+       is a {{!is_file_path}file path} (e.g. ["a"]) or a
+       {{!is_dir_path}directory path} (e.g. ["a/"]).}
     {- Windows accepts both ['\\'] and ['/'] as directory
        separator.  However [Fpath] on Windows converts ['/'] to ['\\'] on
        the fly. Therefore you should either use ['/'] for defining
@@ -815,12 +828,10 @@ end
 
     {2:ex_is_root {!is_root}}
     {ul
-    {- [is_root (v "//") = true]}
     {- [is_root (v "/") = true]}
-    {- [is_root (v "/a/..") = false]}
     {- [is_root (v "/a") = false]}
-    {- [is_root (v "a") = false]}
-    {- [is_root (v ".") = false]}
+    {- [is_root (v "/a/..") = false]}
+    {- [is_root (v "//") = true] (POSIX)}
     {- [is_root (v "\\\\.\\dev\\") = true] (Windows)}
     {- [is_root (v "\\\\.\\dev\\a") = false] (Windows)}
     {- [is_root (v "\\\\server\\share\\") = true] (Windows)}
@@ -834,14 +845,14 @@ end
     {- [is_current_dir (v ".") = true]}
     {- [is_current_dir (v "./") = true]}
     {- [is_current_dir (v "./a/..") = false]}
-    {- [is_current_dir (v "/.") = false]}
-    {- [is_current_dir (v "\\\\.\\dev\\.") = false] (Windows)}
-    {- [is_current_dir (v "\\\\.\\dev\\.\\") = false] (Windows)}
-    {- [is_current_dir (v "\\\\server\\share\\.") = false] (Windows)}
-    {- [is_current_dir (v "\\\\server\\share\\.\\") = false] (Windows)}
-    {- [is_current_dir (v "C:.") = true] (Windows)}
-    {- [is_current_dir (v "C:./") = true] (Windows)}
-    {- [is_current_dir (v "C:./a/..") = false] (Windows)}}
+    {- [is_current_dir (v "./.") = false]}}
+
+    {2:ex_is_dotfile {!is_dotfile}}
+    {ul
+    {- [is_dotfile (v ".ssh") = true]}
+    {- [is_dotfile (v ".ssh/") = true]}
+    {- [is_dotfile (v ".ssh/.") = false]}
+    {- [is_dotfile (v ".ssh/a") = false]}}
 
     {2:ex_get_ext {!get_ext}}
 

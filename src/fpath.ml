@@ -64,6 +64,11 @@ let validate_and_collapse_seps p =
   try_no_alloc false start
 
 let is_unc_path_windows p = String.is_prefix "\\\\" p
+let windows_non_unc_path_start_index p =
+  match String.find (Char.equal ':') p with
+  | None -> 0
+  | Some i -> i + 1 (* exists by construction *)
+
 
 let parse_unc_windows s =
   (* parses an UNC path, the \\ prefix was already parsed, adds a root path
@@ -417,7 +422,6 @@ let normalize_rel_segs_rev segs =
   in
   loop [] segs
 
-
 let normalize_segs = function
 | "" :: segs -> (* absolute path *)
     let rec rem_dotdots = function
@@ -592,9 +596,7 @@ let relativize ~root p =
 let is_rel_posix p = p.[0] <> dir_sep_char
 let is_rel_windows p =
   if is_unc_path_windows p then false else
-  match String.find (Char.equal ':') p with
-  | None -> p.[0] <> dir_sep_char
-  | Some i -> p.[i+1] <> dir_sep_char (* i+1 exists by construction *)
+  p.[windows_non_unc_path_start_index p] <> dir_sep_char
 
 let is_rel = if windows then is_rel_windows else is_rel_posix
 let is_abs p = not (is_rel p)
@@ -602,20 +604,20 @@ let is_abs p = not (is_rel p)
 let is_root = if windows then is_root_windows else is_root_posix
 
 let is_current_dir_posix p = String.equal p dot || String.equal p dot_dir
-let is_current_dir_windows =
-  fun p ->
-    let _, p = sub_split_volume_windows p in
-    String.Sub.equal_bytes p dot_sub ||
-    String.Sub.equal_bytes p dot_dir_sub
+let is_current_dir_windows p =
+  if is_unc_path_windows p then false else
+  let start = windows_non_unc_path_start_index p in
+  match String.length p - start with
+  | 1 -> p.[start] = '.'
+  | 2 -> p.[start] = '.' && p.[start + 1] = '/'
+  | _ -> false
 
 let is_current_dir =
   if windows then is_current_dir_windows else is_current_dir_posix
 
-let is_dotfile p =
-  let b = base p in
-  match String.head b with
-  | Some '.' -> b <> dot && b <> dotdot
-  | _ -> false
+let is_dotfile p = match basename p with
+| "" -> false
+| s -> s.[0] = '.'
 
 let equal = String.equal
 let compare = String.compare

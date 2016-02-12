@@ -68,7 +68,7 @@ let of_string = test "Fpath.{v,of_string}" @@ fun () ->
   end;
   ()
 
-let dir_sep = test "dir_sep" @@ fun () ->
+let dir_sep = test "Fpath.dir_sep" @@ fun () ->
   eq_str Fpath.dir_sep (if windows then "\\" else "/");
   ()
 
@@ -706,15 +706,18 @@ let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->
   ()
 
 let is_root = test "Fpath.is_root" @@ fun () ->
-  if not windows then (eq_bool (Fpath.is_root (v "//")) true);
   eq_bool (Fpath.is_root (v "/")) true;
+  eq_bool (Fpath.is_root (v "/..")) false;
+  eq_bool (Fpath.is_root (v "/.")) false;
   eq_bool (Fpath.is_root (v "/a")) false;
   eq_bool (Fpath.is_root (v "/a/..")) false;
   eq_bool (Fpath.is_root (v "a")) false;
   eq_bool (Fpath.is_root (v ".")) false;
   eq_bool (Fpath.is_root (v "..")) false;
+  if not windows then (eq_bool (Fpath.is_root (v "//")) true);
   if windows then begin
     eq_bool (Fpath.is_root (v "\\\\.\\dev\\")) true;
+    eq_bool (Fpath.is_root (v "\\\\.\\dev\\..")) false;
     eq_bool (Fpath.is_root (v "\\\\.\\dev\\a")) false;
     eq_bool (Fpath.is_root (v "\\\\server\\share\\")) true;
     eq_bool (Fpath.is_root (v "\\\\server\\share\\a")) false;
@@ -754,6 +757,15 @@ let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
   eq_bool (Fpath.is_dotfile (v "/a/...")) true;
   eq_bool (Fpath.is_dotfile (v "/a/.../")) true;
   eq_bool (Fpath.is_dotfile (v "/a/.../a")) false;
+  if windows then begin
+    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.\\")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.")) false;
+    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.\\")) false;
+    eq_bool (Fpath.is_current_dir (v "C:.")) true;
+    eq_bool (Fpath.is_current_dir (v "C:./")) true;
+    eq_bool (Fpath.is_current_dir (v "C:./a/..")) false;
+  end;
   ()
 
 let get_ext = test "Fpath.get_ext" @@ fun () ->

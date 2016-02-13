@@ -185,7 +185,7 @@ val normalize : t -> t
 
     {b Warning.} The {{!is_prefix}prefix property} between paths does
     not entail directory containement in general, as it is, by
-    definition, a structural test. For example [is_prefix (v "..")  (v
+    definition, a syntactic test. For example [is_prefix (v "..")  (v
     "../..")]  is [true], but the second path is not contained in the
     first one or [is_prefix (v "..") (v ".")]  is [false]. However, on
     {{!normalize}normalized}, {{!is_abs}absolute} paths, the prefix relation
@@ -265,7 +265,7 @@ val is_root : t -> bool
     root directory separator and a single, empty, segment.
     {{!ex_is_root}Examples}.
 
-    {b Warning.} By definition this is a structural test. For example it will
+    {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on ["/a/.."] or ["/.."]. {{!normalize}Normalizing}
     the path before testing avoids this problem. *)
 
@@ -273,7 +273,7 @@ val is_current_dir : t -> bool
 (** [is_current_dir p] is true iff [p] is the current relative directory,
     i.e. either ["."] or ["./"]. {{!ex_is_current_dir}Examples}.
 
-    {b Warning.} By definition this is a structural test. For example it will
+    {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on ["./a/.."] or ["./."]. {{!normalize}Normalizing} the
     path before testing avoids this problem. *)
 
@@ -281,7 +281,7 @@ val is_dotfile : t -> bool
 (** [is_dotfile p] is [true] iff [p]'s last non-empty segment is not
     ["."] or [".."] and starts with a ['.']. {{!ex_is_dotfile}Examples}.
 
-    {b Warning.} By definition this is a structural test. For example it will
+    {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on [".ssh/."]. {{!normalize}Normalizing} the
     path before testing avoids this problem. *)
 
@@ -289,7 +289,7 @@ val equal : t -> t -> bool
 (** [equal p p'] is [true] if [p] and [p'] have the same volume
     are both relative or absolute and have the same segments.
 
-    {b Warning.} By definition this is a structural test. For example
+    {b Warning.} By definition this is a syntactic test. For example
     [equal (v "./") (v "a/..")] is [false]. {{!normalize}Normalizing}
     the paths before testing avoids this problem. *)
 

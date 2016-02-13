@@ -417,7 +417,10 @@ let normalize_rel_segs_rev segs =
           | rest -> loop acc rest
       end
   | seg :: rest -> loop (seg :: acc) rest
-  | [] -> acc
+  | [] ->
+      match acc with
+      | ".." :: _ -> ("" :: acc) (* normalize final .. to ../ *)
+      | acc -> acc
   in
   loop [] segs
 

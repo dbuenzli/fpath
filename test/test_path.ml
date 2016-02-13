@@ -491,8 +491,9 @@ let rem_empty_seg = test "Fpath.rem_empty_seg" @@ fun () ->
 
 let normalize = test "Fpath.normalize" @@ fun () ->
   eqp (Fpath.normalize @@ v ".") (v "./");
-  eqp (Fpath.normalize @@ v "..") (v "..");
+  eqp (Fpath.normalize @@ v "..") (v "../");
   eqp (Fpath.normalize @@ v "../") (v "../");
+  eqp (Fpath.normalize @@ v "../..") (v "../../");
   eqp (Fpath.normalize @@ v "../../") (v "../../");
   eqp (Fpath.normalize @@ v "/") (v "/");
   eqp (Fpath.normalize @@ v "/a/b/") (v "/a/b/");
@@ -511,8 +512,11 @@ let normalize = test "Fpath.normalize" @@ fun () ->
   eqp (Fpath.normalize @@ v "/a/b/./..") (v "/a/");
   eqp (Fpath.normalize @@ v "/../..") (v "/");
   eqp (Fpath.normalize @@ v "/a/../..") (v "/");
-  eqp (Fpath.normalize @@ v "./../..") (v "../..");
+  eqp (Fpath.normalize @@ v "./../..") (v "../../");
   eqp (Fpath.normalize @@ v "../../a/") (v "../../a/");
+  eqp (Fpath.normalize @@ v "a/../a/") (v "a/");
+  eqp (Fpath.normalize @@ v "a/../a/../..") (v "../");
+  eqp (Fpath.normalize @@ v "/a/../a/../..") (v "/");
   eqp (Fpath.normalize @@ v "/a/b/c/./../../g") (v "/a/g");
   eqp (Fpath.normalize @@ v "/a/b/c/./../../g/") (v "/a/g/");
   eqp (Fpath.normalize @@ v "a/b/c/./../../g") (v "a/g");
@@ -521,7 +525,7 @@ let normalize = test "Fpath.normalize" @@ fun () ->
   eqp (Fpath.normalize @@ v "./././") (v "./");
   eqp (Fpath.normalize @@ v "./a/..") (v "./");
   eqp (Fpath.normalize @@ v "./a/../") (v "./");
-  eqp (Fpath.normalize @@ v "..") (v "..");
+  eqp (Fpath.normalize @@ v "..") (v "../");
   eqp (Fpath.normalize @@ v "../../../a") (v "../../../a");
   eqp (Fpath.normalize @@ v "../../../a/") (v "../../../a/");
   eqp (Fpath.normalize @@ v "/") (v "/");
@@ -531,8 +535,8 @@ let normalize = test "Fpath.normalize" @@ fun () ->
   eqp (Fpath.normalize @@ v "/./../../.") (v "/");
   eqp (Fpath.normalize @@ v "../../a/..") (v "../../");
   eqp (Fpath.normalize @@ v "../../a/../.") (v "../../");
-  eqp (Fpath.normalize @@ v "../../a/.././..") (v "../../..");
-  eqp (Fpath.normalize @@ v "../../a/../..") (v "../../..");
+  eqp (Fpath.normalize @@ v "../../a/.././..") (v "../../../");
+  eqp (Fpath.normalize @@ v "../../a/../..") (v "../../../");
   eqp (Fpath.normalize @@ v "/a/b/c/./../../g") (v "/a/g");
   eqp (Fpath.normalize @@ v "./a/b/c/./../../g") (v "a/g");
   eqp (Fpath.normalize @@ v "./a/b/c/./../../g/") (v "a/g/");

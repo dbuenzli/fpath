@@ -176,7 +176,9 @@ val normalize : t -> t
        segments.}
     {- If [p] is relative the resulting path is either ["./"] or
        it has no ["."] segments and [".."] segments may only appear as
-       initial segments.}}
+       initial segments.}
+    {- If [p] is a {{!is_dir_path}directory} it always end with
+       an empty segment; this means it doesn't end with ["."] or [".."].}}
     {{!ex_normalize}Examples}. *)
 
 (** {1:prefix Prefixes}
@@ -734,9 +736,9 @@ end
     {2:ex_normalize {!normalize}}
     {ul
     {- [equal (normalize @@ v ".") (v "./")]}
-    {- [equal (normalize @@ v "..") (v "..")]}
-    {- [equal (normalize @@ v "../") (v "..")]}
-    {- [equal (normalize @@ v "../../") (v "../..")]}
+    {- [equal (normalize @@ v "..") (v "../")]}
+    {- [equal (normalize @@ v "../") (v "../")]}
+    {- [equal (normalize @@ v "../../") (v "../../")]}
     {- [equal (normalize @@ v "/") (v "/")]}
     {- [equal (normalize @@ v "/a/b/") (v "/a/b/")]}
     {- [equal (normalize @@ v "/a/b") (v "/a/b")]}
@@ -754,7 +756,7 @@ end
     {- [equal (normalize @@ v "/a/b/./..") (v "/a/")]}
     {- [equal (normalize @@ v "/../..") (v "/")]}
     {- [equal (normalize @@ v "/a/../..") (v "/")]}
-    {- [equal (normalize @@ v "./../..") (v "../..")]}
+    {- [equal (normalize @@ v "./../..") (v "../../")]}
     {- [equal (normalize @@ v "../../a/") (v "../../a/")]}
     {- [equal (normalize @@ v "/a/b/c/./../../g") (v "/a/g")]}
     {- [equal (normalize @@ v "/a/b/c/./../../g/") (v "/a/g/")]}

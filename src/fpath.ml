@@ -69,7 +69,6 @@ let windows_non_unc_path_start_index p =
   | None -> 0
   | Some i -> i + 1 (* exists by construction *)
 
-
 let parse_unc_windows s =
   (* parses an UNC path, the \\ prefix was already parsed, adds a root path
      if there's only a volume, UNC paths are always absolute. *)
@@ -453,96 +452,68 @@ let normalize = if windows then normalize_windows else normalize_posix
 
 (* Prefixes *)
 
-let is_prefix ~root p =
-  if not (String.is_prefix root p) then false else
-  (* Further check the prefix is segment-based. If [root] ends with a
-     dir_sep nothing more needs to be checked. If it doesn't we need
-     to check that [p]'s suffix is empty or starts with a directory
-     separator. *)
-  let suff_start = String.length root in
-  if root.[suff_start - 1] = dir_sep_char then true else
+let is_prefix prefix p =
+  if not (String.is_prefix prefix p) then false else
+  (* Further check the prefix is segment-based. If [prefix] ends with a
+     dir_sep_char nothing more needs to be checked. If it doesn't we need
+     to check that [p]'s remaining suffix is either empty or
+     starts with a directory separator. *)
+  let suff_start = String.length prefix in
+  if prefix.[suff_start - 1] = dir_sep_char then true else
   if suff_start = String.length p then true else
   p.[suff_start] = dir_sep_char
 
-let find_prefix_windows p0 p1 =
-  let v0, ps0 = sub_split_volume_windows p0 in
-  let v1, ps1 = sub_split_volume_windows p1 in
-  if not (String.Sub.equal_bytes v0 v1) then None else
-  let cut s = String.Sub.cut ~sep:dir_sep_sub s in
-  let prefix s = match String.Sub.length s with
-  | 0 ->
-      if String.Sub.get_head ps0 <> dir_sep_char &&
-         String.Sub.get_head ps1 <> dir_sep_char
-      then Some (String.Sub.(to_string (concat [v0; dot_sub]))) else
-      None
-  | _ ->
-      Some (String.Sub.(to_string (extend ~rev:true s)))
+let seg_prefix_last_index p0 p1 = (* Warning doesn't care about volumes *)
+  let l0 = String.length p0 in
+  let l1 = String.length p1 in
+  let p0, p1, max = if l0 < l1 then p0, p1, l0 - 1 else p1, p0, l1 - 1 in
+  let rec loop last_dir_sep i p0 p1 = match i > max || p0.[i] <> p1.[i] with
+  | false ->
+      let last_dir_sep = if p0.[i] = dir_sep_char then i else last_dir_sep in
+      loop last_dir_sep (i + 1) p0 p1
+  | true ->
+      if i = 0 then None else
+      let last = i - 1 in
+      if last_dir_sep = last then Some last else
+      match last = max with
+      | true ->
+          if l1 = l0 then Some last else
+          if p1.[i] = dir_sep_char then Some last else
+          if last_dir_sep <> -1 then Some last_dir_sep else None
+      | false ->
+          if last_dir_sep <> -1 then Some last_dir_sep else None
   in
-  let rec loop p0 p1 = match cut p0, cut p1 with
-  | Some (s0, p0), Some (s1, p1) ->
-      if String.Sub.equal_bytes s0 s1 then loop p0 p1 else
-      prefix String.Sub.(extent (start ps0) (start s0))
-  | Some (s0, _), None ->
-      if String.Sub.equal_bytes s0 p1
-      then prefix String.Sub.(extent (start ps0) (stop s0))
-      else prefix String.Sub.(extent (start ps1) (start p1))
-  | None, Some (s1, _) ->
-      if String.Sub.equal_bytes s1 p0
-      then prefix String.Sub.(extent (start ps1) (stop s1))
-      else prefix String.Sub.(extent (start ps0) (start p0))
-  | None, None ->
-      if String.Sub.equal_bytes p0 p1
-      then prefix String.Sub.(extent (start ps0) (stop p0))
-      else prefix String.Sub.(extent (start ps0) (start p0))
-  in
-  loop ps0 ps1
+  loop (-1) 0 p0 p1
 
-let find_prefix_posix p0 p1 =
-  let cut s = String.Sub.cut ~sep:dir_sep_sub s in
-  let prefix s = match String.Sub.length s with
-  | 0 ->
-      if p0.[0] <> dir_sep_char && p1.[0] <> dir_sep_char
-      then Some dot else None
-  | 1 ->
-      (* watch out for // *)
-      let p0_len = String.length p0 in
-      let p1_len = String.length p1 in
-      if (p0.[0] = dir_sep_char && p1_len > 1 && p1.[1] = dir_sep_char) ||
-         (p1.[0] = dir_sep_char && p0_len > 1 && p0.[1] = dir_sep_char)
-      then None
-      else Some (String.of_char p0.[0])
-  | _ ->
-      Some (String.Sub.to_string s)
-  in
-  let rec loop p0 p1 = match cut p0, cut p1 with
-  | Some (s0, p0), Some (s1, p1) ->
-      if String.Sub.equal_bytes s0 s1 then loop p0 p1 else
-      prefix String.Sub.(extend ~rev:true (start s0))
-  | Some (s0, _), None ->
-      if String.Sub.equal_bytes s0 p1
-      then prefix String.Sub.(extend ~rev:true (stop s0))
-      else prefix String.Sub.(extend ~rev:true (start p1))
-  | None, Some (s1, _) ->
-      if String.Sub.equal_bytes s1 p0
-      then prefix String.Sub.(extend ~rev:true (stop s1))
-      else prefix String.Sub.(extend ~rev:true (start p0))
-  | None, None ->
-      if String.Sub.equal_bytes p0 p1
-      then prefix String.Sub.(extend ~rev:true (stop p0))
-      else prefix String.Sub.(extend ~rev:true (start p0))
-  in
-  loop (String.sub p0) (String.sub p1)
+let find_prefix_windows p0 p1 = match seg_prefix_last_index p0 p1 with
+| None -> None
+| Some i ->
+    let v0_len = String.Sub.length (fst (sub_split_volume_windows p0)) in
+    let v1_len = String.Sub.length (fst (sub_split_volume_windows p1)) in
+    let vmax = if v0_len > v1_len then v0_len else v1_len in
+    if i < vmax then None else
+    Some (String.with_index_range p0 ~last:i)
+
+
+let find_prefix_posix p0 p1 = match seg_prefix_last_index p0 p1 with
+| None -> None
+| Some 0 when String.is_prefix "//" p0 || String.is_prefix "//" p1 -> None
+| Some i -> Some (String.with_index_range p0 ~last:i)
 
 let find_prefix = if windows then find_prefix_windows else find_prefix_posix
 
-let rem_prefix ~root p =
-  if not (is_prefix root p) then None else
-  let root_len = String.length root in
-  let start =
-    if root.[root_len - 1] <> dir_sep_char then root_len + 1 else root_len
-  in
-  if start >= String.length p then Some dot else
-  Some (String.with_range p ~first:start)
+let rem_prefix prefix p = match is_prefix prefix p with
+| false -> None
+| true ->
+    match String.length prefix with
+    | len when len = String.length p -> None
+    | len ->
+        let first = if p.[len] = dir_sep_char then len + 1 else len in
+        match String.with_index_range p ~first with
+        | "" -> Some dot_dir
+        | q -> Some q
+
+(* Roots and relativization *)
 
 let rooted ~root p =
   let nroot = normalize root in
@@ -584,7 +555,7 @@ let is_current_dir_windows p =
   let start = windows_non_unc_path_start_index p in
   match String.length p - start with
   | 1 -> p.[start] = '.'
-  | 2 -> p.[start] = '.' && p.[start + 1] = '/'
+  | 2 -> p.[start] = '.' && p.[start + 1] = dir_sep_char
   | _ -> false
 
 let is_current_dir =

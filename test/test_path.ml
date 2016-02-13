@@ -550,8 +550,14 @@ let normalize = test "Fpath.normalize" @@ fun () ->
 
 let is_prefix = test "Fpath.is_prefix" @@ fun () ->
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b")) true;
-  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/bc")) false;
+  eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/")) true;
+  eq_bool (Fpath.is_prefix (v "a/b/") (v "a/b")) false;
+  eq_bool (Fpath.is_prefix (v "a/b/") (v "a/b/")) true;
+  eq_bool (Fpath.is_prefix (v "a/b/") (v "a/b/c")) true;
+  eq_bool (Fpath.is_prefix (v ".") (v "./")) true;
+  eq_bool (Fpath.is_prefix (v "..") (v ".")) false;
+  eq_bool (Fpath.is_prefix (v ".") (v "..")) false;
   eq_bool (Fpath.is_prefix (v "/a/b") (v "/a/b/c")) true;
   eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b/c")) true;
   eq_bool (Fpath.is_prefix (v "/a/b/") (v "/a/b")) false;
@@ -569,59 +575,79 @@ let is_prefix = test "Fpath.is_prefix" @@ fun () ->
 
 let find_prefix = test "Fpath.find_prefix" @@ fun () ->
   let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
-  eq (Fpath.find_prefix (v "a/b/c") (v "a/b/d")) (Some (v "a/b/"));
-  eq (Fpath.find_prefix (v "a/b/c") (v "a/b/cd")) (Some (v "a/b/"));
-  eq (Fpath.find_prefix (v "/a/b/c") (v "/a/b/d")) (Some (v "/a/b/"));
-  eq (Fpath.find_prefix (v "a/b") (v "e/f")) (Some (v "."));
-  eq (Fpath.find_prefix (v "/a/b") (v "/e/f")) (Some (v "/"));
-  eq (Fpath.find_prefix (v "/a/b") (v "e/f")) None;
-  eq (Fpath.find_prefix (v "a/b") (v "/e/f")) None;
-  eq (Fpath.find_prefix (v "ab") (v "abc")) (Some (v "."));
-  eq (Fpath.find_prefix (v "ab") (v "ab")) (Some (v "ab"));
-  eq (Fpath.find_prefix (v "/") (v "/")) (Some (v "/"));
-  eq (Fpath.find_prefix (v "a/") (v "a")) (Some (v "a"));
-  eq (Fpath.find_prefix (v "abc/") (v "abc")) (Some (v "abc"));
-  eq (Fpath.find_prefix (v "abcd/") (v "abc")) (Some (v "."));
-  eq (Fpath.find_prefix (v "a/") (v "a/a")) (Some (v "a/"));
+  let find_prefix p0 p1 r =
+    eq (Fpath.find_prefix p0 p1) r;
+    eq (Fpath.find_prefix p1 p0) r;
+  in
+  find_prefix (v "a/b/c") (v "a/b/d") (Some (v "a/b/"));
+  find_prefix (v "a/b/c") (v "a/b/cd") (Some (v "a/b/"));
+  find_prefix (v "a/b") (v "a/b") (Some (v "a/b"));
+  find_prefix (v "a/b") (v "a/b/") (Some (v "a/b"));
+  find_prefix (v "a/b") (v "e/f") None;
+  find_prefix (v "/a/b") (v "/e/f") (Some (v "/"));
+  find_prefix (v "/a/b") (v "e/f") None;
+  find_prefix (v "/a/b/c") (v "/a/b/d") (Some (v "/a/b/"));
+  find_prefix (v "ab") (v "abc") None;
+  find_prefix (v "ab") (v "ab") (Some (v "ab"));
+  find_prefix (v "/") (v "/") (Some (v "/"));
+  find_prefix (v "a/") (v "a") (Some (v "a"));
+  find_prefix (v "abc/") (v "abc") (Some (v "abc"));
+  find_prefix (v "abcd/") (v "abc") None;
+  find_prefix (v "a/") (v "a/a") (Some (v "a/"));
   if not windows then begin
-    eq (Fpath.find_prefix (v "//") (v "/a/b")) None;
-    eq (Fpath.find_prefix (v "//a/b/c") (v "/")) None;
-    eq (Fpath.find_prefix (v "//a/b/c") (v "//")) (Some (v "//"));
-    eq (Fpath.find_prefix (v "//a/b") (v "/a/b")) None;
-    eq (Fpath.find_prefix (v "//") (v "/")) None;
-    eq (Fpath.find_prefix (v "//a/c") (v "/a/b")) None;
-    eq (Fpath.find_prefix (v "//a/c") (v "a/b")) None;
+    find_prefix (v "//") (v "/") None;
+    find_prefix (v "/") (v "//") None;
+    find_prefix (v "//") (v "/a/b") None;
+    find_prefix (v "//a/b/c") (v "/") None;
+    find_prefix (v "//a/b/c") (v "//") (Some (v "//"));
+    find_prefix (v "//a/b") (v "/a/b") None;
+    find_prefix (v "//a/c") (v "/a/b") None;
+    find_prefix (v "//a/c") (v "a/b") None;
   end;
   if windows then begin
-    eq (Fpath.find_prefix (v "C:\\a") (v "\\a")) None;
-    eq (Fpath.find_prefix (v "C:\\a") (v "C:\\a")) (Some (v "C:\\a"));
-    eq (Fpath.find_prefix (v "C:a") (v "C:a")) (Some (v "C:a"));
-    eq (Fpath.find_prefix (v "C:a") (v "C:b")) (Some (v "C:."));
-    eq (Fpath.find_prefix (v "C:a") (v "C:b/c")) (Some (v "C:."));
-    eq (Fpath.find_prefix (v "C:a/f") (v "C:b/c")) (Some (v "C:."));
-    eq (Fpath.find_prefix (v "C:a/f") (v "C:/b/c")) None;
-    eq (Fpath.find_prefix (v "C:\\") (v "C:\\")) (Some (v "C:\\"));
-    eq (Fpath.find_prefix (v "\\\\server\\share\\") (v "\\\\server\\share\\"))
+    find_prefix (v "C:\\a") (v "\\a") None;
+    find_prefix (v "C:\\a") (v "C:\\a") (Some (v "C:\\a"));
+    find_prefix (v "C:a") (v "C:a") (Some (v "C:a"));
+    find_prefix (v "C:a") (v "C:b") None;
+    find_prefix (v "C:a") (v "C:b/c") None;
+    find_prefix (v "C:a/f") (v "C:b/c") None;
+    find_prefix (v "C:a/f") (v "C:/b/c") None;
+    find_prefix (v "C:\\") (v "C:\\") (Some (v "C:\\"));
+    find_prefix (v "\\\\server\\share\\") (v "\\\\server\\share\\")
       (Some (v "\\\\server\\share\\"));
-    eq (Fpath.find_prefix (v "\\\\server\\share\\") (v "\\\\server\\share\\a"))
+    find_prefix (v "\\\\server\\share\\") (v "\\\\server\\share\\a")
       (Some (v "\\\\server\\share\\"));
-    eq (Fpath.find_prefix (v "\\\\server\\share\\a") (v "\\\\server\\share\\a"))
+    find_prefix (v "\\\\server\\share\\a") (v "\\\\server\\share\\a")
       (Some (v "\\\\server\\share\\a"));
-    eq (Fpath.find_prefix (v "\\\\server\\share\\a") (v "\\\\server\\share\\b"))
+    find_prefix (v "\\\\server\\share\\a") (v "\\\\server\\share\\b")
       (Some (v "\\\\server\\share\\"));
   end;
   ()
 
 let rem_prefix = test "Fpath.rem_prefix" @@ fun () ->
   let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
-  eq (Fpath.rem_prefix (v "/a/b") (v "/a/bc")) None;
-  eq (Fpath.rem_prefix (v "/a/b") (v "/a/b")) (Some (v "."));
+  eq (Fpath.rem_prefix (v "a/b/") (v "a/b")) None;
+  eq (Fpath.rem_prefix (v "a/b/") (v "a/b/")) None;
+  eq (Fpath.rem_prefix (v "a/b") (v "a/b")) None;
+  eq (Fpath.rem_prefix (v "a/b") (v "a/b/")) (Some (v "./"));
+  eq (Fpath.rem_prefix (v "a/b") (v "a/b/c")) (Some (v "c"));
+  eq (Fpath.rem_prefix (v "a/b") (v "a/b/c/")) (Some (v "c/"));
+  eq (Fpath.rem_prefix (v "a/b/") (v "a/b/c")) (Some (v "c"));
+  eq (Fpath.rem_prefix (v "a/b/") (v "a/b/c/")) (Some (v "c/"));
+  eq (Fpath.rem_prefix (v "a/b") (v "a/b")) None;
   eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b")) None;
-  eq (Fpath.rem_prefix (v "/a/b") (v "/a/b/")) (Some (v "."));
-  eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b/")) (Some (v "."));
+  eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b/")) None;
+  eq (Fpath.rem_prefix (v "/a/b") (v "/a/bc")) None;
+  eq (Fpath.rem_prefix (v "/a/b") (v "/a/b")) None;
+  eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b")) None;
+  eq (Fpath.rem_prefix (v "/a/b") (v "/a/b/")) (Some (v "./"));
+  eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b/")) None;
   eq (Fpath.rem_prefix (v "/a/b") (v "/a/b/c")) (Some (v "c"));
   eq (Fpath.rem_prefix (v "/a/b/") (v "/a/b/c")) (Some (v "c"));
   eq (Fpath.rem_prefix (v "a") (v "a/b/c")) (Some (v "b/c"));
+  if windows then begin
+    eq (Fpath.rem_prefix (v "C:\\a") (v "C:\\a\\b")) (Some (v "b"));
+  end;
   ()
 
 let rooted = test "Fpath.rooted" @@ fun () ->
@@ -651,16 +677,19 @@ let relativize = test "Fpath.relativize" @@ fun () ->
       eq_opt r result;
       eqp (Fpath.normalize (Fpath.append root rp)) (Fpath.normalize p);
   in
+(*
   relativize (v "/a/b") (v "c") None;
   relativize (v "/a/b") (v "/c") (Some (v "../../c"));
   relativize (v "/a/b") (v "/c/") (Some (v "../../c/"));
-  relativize (v "/a/b") (v "/a/b/c") (Some (v "c"));
+(*  relativize (v "/a/b") (v "/a/b/c") (Some (v "c")); *)
 (*  relativize (v "/a/b") (v "/a/b") (Some (v "./"));
   relativize (v "/a/b") (v "/a/b/") (Some (v "./")); *)
   relativize (v "/a/b/c") (v "/d/e/f") (Some (v "../../../d/e/f"));
   relativize (v "/a/b/c") (v "/a/b/d") (Some (v "../d"));
   relativize (v "a/b") (v "/c") None;
+(*
   relativize (v "a/b") (v "c") (Some (v "../../c"));
+*)
 (*  relativize (v "a/b") (v "c/") (Some (v "../../c")); *)
   relativize (v "a/b") (v "a/b/c") (Some (v "c"));
 (*  relativize (v "a/b") (v "a/b") (Some (v ".")); *)
@@ -668,8 +697,10 @@ let relativize = test "Fpath.relativize" @@ fun () ->
   relativize (v "../a") (v "b") None;
   relativize (v "../../a") (v "../b") None;
   relativize (v "../a") (v "../../b") (Some (v "../../b"));
-  relativize (v "a") (v "../../b") (Some (v "../../../b"));
+(*  relativize (v "a") (v "../../b") (Some (v "../../../b"));
   relativize (v "a/c") (v "../../b") (Some (v "../../../../b"));
+*)
+*)
   ()
 
 let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->

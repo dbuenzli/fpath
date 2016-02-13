@@ -179,36 +179,56 @@ val normalize : t -> t
        initial segments.}}
     {{!ex_normalize}Examples}. *)
 
-(** {1:prefix Prefixes, roots and relativization} *)
+(** {1:prefix Prefixes}
 
-val is_prefix : root:t -> t -> bool
-(** [is_prefix ~root p] is [true] if [root] is a prefix of [p].  This
-    checks that [root] has the same optional volume as [p], the same
-    optional root directory separator and that the list of segments
-    of [root] is a prefix of the segments of [p]. {{!ex_is_prefix}Examples}. *)
+    {b Warning.} The {{!is_prefix}prefix property} between paths does
+    not entail directory containement in general, as it is, by
+    definition, a structural test. For example [is_prefix (v "..")  (v
+    "../..")]  is [true], but the second path is not contained in the
+    first one or [is_prefix (v "..") (v ".")]  is [false]. However, on
+    {{!normalize}normalized}, {{!is_abs}absolute} paths, the prefix relation
+    does entail directory containement. See also {!rooted}. *)
+
+val is_prefix : t -> t -> bool
+(** [is_prefix prefix p] is [true] if [prefix] is a prefix of
+    [p]. This checks that:
+    {ul
+    {- [prefix] has the same optional volume as [p].}
+    {- [prefix] has the same optional root directory separator as [p].}
+    {- The list of segments of [prefix] is a prefix of those of
+       [p], ignoring the last empty segment of [prefix] if the number of
+       non-empty segments of [p] is strictly larger than those of [prefix].
+       This means that [is_prefix (v "a/") (v "a/b")] is [true] but
+       [is_prefix (v "a/") (v "a")] is [false]}}
+    {{!ex_is_prefix}Examples}. *)
 
 val find_prefix : t -> t -> t option
-(** [find_prefix p p'] is [Some root] if there exists [root] such that
-    [root] is the longest path with
-    [is_prefix root p && is_prefix root p' = true] and [None] otherwise.
-    Note that if both [p] and [p'] are relative or absolute
-    and have the same volume then a prefix exists.
+(** [find_prefix p p'] is [Some prefix] if there exists [prefix] such
+    that [prefix] is the longest path with [is_prefix prefix p &&
+    is_prefix prefix p' = true] and [None] otherwise.  Note that if
+    both [p] and [p'] are absolute and have the same volume then a
+    prefix always exists: the {{!is_root}root path} of their volume.
     {{!ex_find_prefix}Examples}. *)
 
-val rem_prefix : root:t -> t -> t option
-(** [rem_prefix root p] is [Some q] if [root] is a
-    {{!is_prefix}prefix} of [p]; [q] is [p] without the [root]
-    prefix but interpreted as a {{!file_to_dir}directory} (hence [q]
-    is always relative). {{!ex_rem_prefix}Examples}.
+val rem_prefix : t -> t -> t option
+(** [rem_prefix prefix p] is:
+    {ul
+    {- [None] if [prefix] is not a prefix of [p] or if [prefix]
+       and [p] are {{!equal}equal}.}
+    {- [Some q] otherwise where [q] is [p] without the
+       prefix [prefix] and preserves [p]'s
+       {{!is_dir_path}directoryness}. This means that [q] is a always
+       {{!is_rel}relative} and that the path [prefix // q] and [p] represent the
+       same paths (they may however differ syntactically when
+       converted to a string).}}
+    {{!ex_rem_prefix}Examples}. *)
 
-    {b Note.} If you {{!find_prefix}find} a prefix and this
-    prefix is ["."], [rem_prefix] may return [None] on that
-    prefix and the path where you found it. *)
+(** {1 Roots and relativization} *)
 
 val rooted : root:t -> t -> t option
 (** [rooted ~root p] is:
     {ul
-    {- [None] if
+    {- [None] if [prefix]
        [is_prefix (normalize root) (normalize @@ append root p) = false].}
     {- [Some (normalize @@ append root p)] otherwise.}}
        In other words it ensures that an absolute path [p] or a relative
@@ -746,43 +766,41 @@ end
     {- [equal (normalize @@ v "C:a\\") (v "C:a\\")] (Windows)}}
 
     {2:ex_is_prefix {!is_prefix}}
-
     {ul
     {- [is_prefix (v "/a/b") (v "/a/b") = true]}
-    {- [is_prefix (v "/a/b") (v "/a/b/") = true]}
     {- [is_prefix (v "/a/b") (v "/a/bc") = false]}
-    {- [is_prefix (v "/a/b") (v "/a/b/c") = true]}
-    {- [is_prefix (v "/a/b/") (v "/a/b") = false]}
-    {- [is_prefix (v "a/b") (v "/a/b") = false]}
-    {- [is_prefix (v "a/b") (v "a/b") = true]}
-    {- [is_prefix (v "//a/b") (v "/a/b") = false]}
+    {- [is_prefix (v "/a/b") (v "/a/b/") = true]}
+    {- [is_prefix (v "a/b/") (v "a/b") = false]}
+    {- [is_prefix (v "a/b/") (v "a/b/") = true]}
+    {- [is_prefix (v "a/b/") (v "a/b/c") = true]}
+    {- [is_prefix (v ".") (v "./") = true]}
+    {- [is_prefix (v "..") (v ".") = false]}
     {- [is_prefix (v "C:a") (v "a") = false] (Windows)}}
 
     {2:ex_find_prefix {!find_prefix}}
-
     {ul
     {- [find_prefix (v "a/b/c") (v "a/b/d")] is [Some (v "a/b/")]}
     {- [find_prefix (v "a/b/c") (v "a/b/cd")] is [Some (v "a/b/")]}
-    {- [find_prefix (v "/a/b/c") (v "/a/b/d")] is [Some (v "/a/b/")]}
-    {- [find_prefix (v "a/b") (v "e/f")] is [Some (v ".")]}
+    {- [find_prefix (v "a/b") (v "a/b")] is [Some (v "a/b")]}
+    {- [find_prefix (v "a/b") (v "a/b/")] is [Some (v "a/b")]}
+    {- [find_prefix (v "a/b") (v "e/f")] is [None]}
     {- [find_prefix (v "/a/b") (v "/e/f")] is [Some (v "/")]}
     {- [find_prefix (v "/a/b") (v "e/f")] is [None]}
     {- [find_prefix (v "C:\\a") (v "\\a")] is [None] (Windows)}}
 
     {2:ex_rem_prefix {!rem_prefix}}
-
     {ul
-    {- [rem_prefix (v "/a/b") (v "/a/bc")] is [None]}
-    {- [rem_prefix (v "/a/b") (v "/a/b")] is [Some (v ".")]}
-    {- [rem_prefix (v "/a/b/") (v "/a/b")] is [None]}
-    {- [rem_prefix (v "/a/b") (v "/a/b/")] is [Some (v ".")]}
-    {- [rem_prefix (v "/a/b/") (v "/a/b/")] is [Some (v ".")]}
-    {- [rem_prefix (v "/a/b") (v "/a/b/c")] is [Some (v "c")]}
-    {- [rem_prefix (v "/a/b/") (v "/a/b/c")] is [Some (v "c")]}
-    {- [rem_prefix (v "a") (v "a/b/c")] is [Some (v "b/c")]}}
+    {- [rem_prefix (v "a/b/") (v "a/b")] is [None]}
+    {- [rem_prefix (v "a/b/") (v "a/b/")] is [None]}
+    {- [rem_prefix (v "a/b") (v "a/b")] is [None]}
+    {- [rem_prefix (v "a/b") (v "a/b/")] is [Some "./"]}
+    {- [rem_prefix (v "a/b") (v "a/b/c")] is [Some (v "c")]}
+    {- [rem_prefix (v "a/b/") (v "a/b/c")] is [Some (v "c")]}
+    {- [rem_prefix (v "a/b") (v "a/b/c/")] is [Some (v "c/")]}
+    {- [rem_prefix (v "a/b/") (v "a/b/c/")] is [Some (v "c/")]}
+    {- [rem_prefix (v "C:\\a") (v "C:\\a\\b")] is [Some (v "b")] (Windows)}}
 
     {2:ex_rooted {!rooted}}
-
     {ul
     {- [rooted (v "/a/b") (v "c")] is [Some (v "/a/b/c")]}
     {- [rooted (v "/a/b") (v "/a/b/c")] is [Some (v "/a/b/c")]}

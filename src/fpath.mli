@@ -120,7 +120,7 @@ val to_dir_path : t -> t
 val filename : t -> string
 (** [filename p] is the file name of [p]. This is the last segment of
     [p] if [p] is a {{!is_file_path}file path} and the empty string
-    otherwise. See also {!name}. {{!ex_filename}Examples}. *)
+    otherwise. See also {!basename}. {{!ex_filename}Examples}. *)
 
 (** {1:parentbase Base and parent paths} *)
 
@@ -135,7 +135,7 @@ val split_base : t -> t * t
        {{!is_root}root path} there are no such segments and [b]
        is ["./"].}
     {- [d] is a {{!is_dir_path}directory} such that [d // b]
-       represents the same path as [p] (it may however differ
+       represents the same path as [p] (they may however differ
        syntactically when converted to a string).}}
 
     {{!ex_split_base}Examples}. *)
@@ -369,7 +369,7 @@ val ( -+ ) : t -> ext -> t
 type path = t
 
 type set
-(** The type for path sets *)
+(** The type for path sets. Membership is determined according to {!equal}. *)
 
 (** Path sets. *)
 module Set : sig
@@ -413,13 +413,12 @@ module Set : sig
   (** [of_list ps] is a set from the list [ps]. *)
 
   val pp : ?sep:(Format.formatter -> unit -> unit) ->
-    (Format.formatter -> string -> unit) ->
+    (Format.formatter -> path -> unit) ->
     Format.formatter -> set -> unit
   (** [pp ~sep pp_elt ppf ps] formats the elements of [ps] on
-        [ppf]. Each element is formatted with [pp_elt] and elements
-        are separated by [~sep] (defaults to
-        {!Format.pp_print_cut}). If the set is empty leaves [ppf]
-        untouched. *)
+      [ppf]. Each element is formatted with [pp_elt] and elements are
+      separated by [~sep] (defaults to {!Format.pp_print_cut}). If the
+      set is empty leaves [ppf] untouched. *)
 
   val dump : Format.formatter -> set -> unit
   (** [dump ppf ps] prints an unspecified representation of [ps] on
@@ -427,7 +426,8 @@ module Set : sig
 end
 
 type +'a map
-(** The type for maps from paths to values of type ['a]. *)
+(** The type for maps from paths to values of type ['a]. Paths are compared
+    with {!compare}. *)
 
 (** Path maps. *)
 module Map : sig
@@ -492,8 +492,8 @@ end
 (** {1:tips Tips}
 
     {ul
-    {- The documentation often talks about the last non-empty segment of
-       a path. This usually means that we don't care whether the path
+    {- The documentation often talks about {e the last non-empty segment of
+       a path}. This usually means that we don't care whether the path
        is a {{!is_file_path}file path} (e.g. ["a"]) or a
        {{!is_dir_path}directory path} (e.g. ["a/"]).}
     {- Windows accepts both ['\\'] and ['/'] as directory
@@ -516,7 +516,6 @@ end
     {1:ex Examples}
 
     {2:ex_add_seg {!add_seg}}
-
     {ul
     {- [equal (add_seg (v "/a") "b") (v "/a/b")]}
     {- [equal (add_seg (v "/a/") "b") (v "/a/b")]}
@@ -530,7 +529,6 @@ end
     {- [equal (add_seg (v "..") "a") (v "../a")]}}
 
     {2:ex_append {!append}}
-
     {ul
     {- [equal (append (v "/a/b/") (v "e/f")) (v "/a/b/e/f")]}
     {- [equal (append (v "/a/b") (v "e/f")) (v "/a/b/e/f")]}
@@ -539,7 +537,6 @@ end
     {- [equal (append (v "a/b") (v "C:e")) (v "C:e")] (Windows)}}
 
     {2:ex_segs {!segs}}
-
     {ul
     {- [segs (v "/a/b/") = [""; "a"; "b"; ""]]}
     {- [segs (v "/a/b") = [""; "a"; "b"]]}
@@ -553,7 +550,6 @@ end
     {- [segs (v "C:\\a") = ["";"a"]] (Windows)}}
 
     {2:ex_is_dir_path {!is_dir_path}}
-
     {ul
     {- [is_dir_path (v ".") = true]}
     {- [is_dir_path (v "..") = true]}
@@ -570,7 +566,6 @@ end
     {- [is_dir_path (v "C:a") = false] (Windows)}}
 
     {2:ex_is_file_path {!is_file_path}}
-
     {ul
     {- [is_file_path (v ".") = false]}
     {- [is_file_path (v "..") = false]}
@@ -587,7 +582,6 @@ end
     {- [is_file_path (v "C:a") = true] (Windows)}}
 
     {2:ex_to_dir_path {!to_dir_path}}
-
     {ul
     {- [equal (to_dir_path @@ v ".") (v "./")]}
     {- [equal (to_dir_path @@ v "..") (v "../")]}
@@ -607,7 +601,6 @@ end
     {- [equal (to_dir_path @@ v "C:\\") (v "C:\\")] (Windows)}}
 
     {2:ex_filename {!filename}}
-
     {ul
     {- [filename (v ".") = ""]}
     {- [filename (v "./") = ""]}
@@ -626,7 +619,6 @@ end
     {- [filename (v "C:a") = "a"] (Windows)}}
 
     {2:ex_split_base {!split_base}}
-
     {ul
     {- [(split_base @@ v ".") = (v "./"), (v ".")]}
     {- [(split_base @@ v "./") = (v "./"), (v "./")]}
@@ -652,7 +644,6 @@ end
     {- [(split_base @@ v "../a/") = (v "../"), (v "a/")]}}
 
     {2:ex_basename {!basename}}
-
     {ul
     {- [basename (v ".") = ""]}
     {- [basename (v "..") = ""]}
@@ -673,7 +664,6 @@ end
     {- [basename (v "C:a") = "a"] (Windows)}}
 
     {2:ex_parent {!parent}}
-
     {ul
     {- [equal (parent @@ v ".") (v "./../")]}
     {- [equal (parent @@ v "..") (v "../../")]}
@@ -698,7 +688,6 @@ end
     {- [equal (parent @@ v "C:a") (v "C:.\\")] (Windows)}}
 
     {2:ex_rem_empty_seg {!rem_empty_seg}}
-
     {ul
     {- [equal (rem_empty_seg @@ v ".") (v ".")]}
     {- [equal (rem_empty_seg @@ v "..") (v "..")]}
@@ -723,7 +712,6 @@ end
     {- [equal (rem_empty_seg @@ v "C:a\\") (v "C:a")] (Windows)}}
 
     {2:ex_normalize {!normalize}}
-
     {ul
     {- [equal (normalize @@ v ".") (v "./")]}
     {- [equal (normalize @@ v "..") (v "..")]}
@@ -808,7 +796,6 @@ end
     {- [rooted (v "a/b") (v "c/../..")] is [None]}}
 
     {2:ex_relativize {!relativize}}
-
     {ul
     {- [relativize (v "/a/b") (v "c")] is [None]}
     {- [relativize (v "/a/b") (v "/c")] is [Some (v "../../c")]}
@@ -855,7 +842,6 @@ end
     {- [is_dotfile (v ".ssh/a") = false]}}
 
     {2:ex_get_ext {!get_ext}}
-
     {ul
     {- [get_ext (v "/a/b") = ""]}
     {- [get_ext (v "a/.") = ""]}
@@ -870,7 +856,6 @@ end
     {- [get_ext ~multi:true (v "a/.emacs.d") = ".d"]}}
 
     {2:ex_has_ext {!has_ext}}
-
     {ul
     {- [has_ext ".mli" (v "a/b.mli")  = true]}
     {- [has_ext "mli" (v "a/b.mli")  = true]}
@@ -880,7 +865,6 @@ end
     {- [has_ext ".tar" (v "a/f.tar.gz") = false]}}
 
     {2:ex_ext_exists {!ext_exists}}
-
     {ul
     {- [ext_exists (v "a/f") = false]}
     {- [ext_exists (v "a/f.") = true]}
@@ -892,7 +876,6 @@ end
     {- [ext_exists ~multi:true (v ".emacs.d") = false]}}
 
     {2:ex_add_ext {!add_ext}}
-
     {ul
     {- [equal (add_ext ".mli" (v "a/b")) (v "a/b.mli")]}
     {- [equal (add_ext "mli" (v "a/b")) (v "a/b.mli")]}
@@ -904,7 +887,6 @@ end
     {- [equal (add_ext "gz" (v "a/f.tar") ) (v "a/f.tar.gz")]}}
 
     {2:ex_rem_ext {!rem_ext}}
-
     {ul
     {- [equal (rem_ext @@ v "/a/b") (v "/a/b")]}
     {- [equal (rem_ext @@ v "/a/b.mli") (v "/a/b")]}

@@ -435,31 +435,6 @@ let normalize_segs = function
     | [] | [""] -> ["."; ""]
     | segs -> segs
 
-(*
-let normalize_segs segs =
-  let rec loop acc = function
-  | "." :: [] -> loop ("" :: acc) []
-  | "." :: rest -> loop acc rest
-  | ".." :: rest ->
-      begin match acc with
-      | "" :: [] (* root *) -> loop acc rest
-      | ".." :: _ -> loop (".." :: acc) rest
-      | seg :: acc ->  loop acc rest
-      | [] -> loop (".." :: []) rest
-      end
-(*  | "" :: [] -> (* suppress trailing slash *) loop acc [] *)
-  | seg :: rest -> loop (seg :: acc) rest
-  | [] ->
-      match List.rev acc with
-      | [] -> [dot_dir]
-      | [""] -> ["";""]
-      | segs -> segs
-  in
-  match segs with
-  | "" :: segs -> (* absolute path *) loop [""] segs
-  | segs -> (* relative path *) loop [] segs
-*)
-
 let normalize_windows p =
   let vol, path = sub_split_volume_windows p in
   let path = String.Sub.to_string path in

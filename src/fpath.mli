@@ -227,8 +227,36 @@ val rem_prefix : t -> t -> t option
 
 (** {1 Roots and relativization} *)
 
-val rooted : root:t -> t -> t option
-(** [rooted ~root p] is:
+val relativize : root:t -> t -> t option
+(** [relativize ~root p] is:
+    {ul
+    {- [Some q] if there exists a {{!is_relative}relative} path [q] such
+       that [root // q] and [p] represent the same paths,
+       {{!is_dir_path}directoryness} included (they may however differ
+       syntactically when converted to a string).}
+    {- [None] otherwise}}
+
+    {{!ex_relativize}Examples.} *)
+
+(*
+
+val is_rooted : root:t -> t -> bool
+(** [is_rooted root p] is [true] iff [p] is equal or contained in the
+    directory represented by [root] (if [root] is a {{!is_file_path}file path},
+    the path {!to_dir_path}[ root] is used instead).
+    {{!ex_is_rooted}Examples.} *)
+
+val rooted_append : ?normalized:bool -> root:t -> t -> t option
+(** [rooted_append ~root p] {{!appends}appends} [p] to [root] and
+    returns a result iff [is_rooted root (append root t)] is [true].
+    If [normalized] is [true] the result is normalized.
+    {{!ex_rooted_append}Examples.} *)
+*)
+
+(*
+
+
+ the path [p] is contained in path [root].
     {ul
     {- [None] if [prefix]
        [is_prefix (normalize root) (normalize @@ append root p) = false].}
@@ -236,19 +264,6 @@ val rooted : root:t -> t -> t option
        In other words it ensures that an absolute path [p] or a relative
        path [p] expressed w.r.t. [root] expresses a path that is
        within the [root] file hierarchy. {{!ex_rooted}Examples}. *)
-
-val relativize : root:t -> t -> t option
-(** [relativize ~root p] expresses [p] relative to [root] without
-    consulting the file system. This is:
-    {ul
-    {- [None] if [find_prefix (normalize root) (normalize p)] is [None] or
-       if the number of initial relative [..] segments is larger in
-       [(normalize root)] than in [normalize p] (intuitively you can't
-       come back from [root] to [p] without knowing the absolute path to
-       the current working directory).}
-    {- [Some q] otherwise with [q] such that
-       [equal (normalize (append root q)) (normalize p) = true].}}
-       {{!ex_relativize}Examples.} *)
 
 (** {1:predicates Predicates and comparison} *)
 
@@ -276,6 +291,16 @@ val is_current_dir : t -> bool
     {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on ["./a/.."] or ["./."]. {{!normalize}Normalizing} the
     path before testing avoids this problem. *)
+
+(*
+val is_parent_dir : t -> bool
+(** [is_parent_dir p] is [true] iff [p] is the relative parent directory,
+    i.e. either [".."] or ["../"]. {{!ex_is_parent_dir}Examples}.
+
+    {b Warning.} By definition this is a syntactic test. For example it will
+    return [false] on ["./a/../.."] or ["./.."]. {{!normalize}Normalizing} the
+    path before testing avoids this problem. *)
+*)
 
 val is_dotfile : t -> bool
 (** [is_dotfile p] is [true] iff [p]'s last non-empty segment is not
@@ -802,6 +827,28 @@ end
     {- [rem_prefix (v "a/b/") (v "a/b/c/")] is [Some (v "c/")]}
     {- [rem_prefix (v "C:\\a") (v "C:\\a\\b")] is [Some (v "b")] (Windows)}}
 
+    {2:ex_is_rooted {!is_rooted}}
+    {ul
+    {- [is_rooted ~root:(v "a/b") (v "a/b") = true]}
+    {- [is_rooted ~root:(v "a/b/") (v "a/b") = true]}
+    {- [is_rooted ~root:(v "a/b") (v "a/b/") = true]}
+    {- [is_rooted ~root:(v "a/b/") (v "a/b/") = true]}
+    {- [is_rooted ~root:(v "./") (v "a") = true]}
+    {- [is_rooted ~root:(v "./") (v "a/") = true]}
+    {- [is_rooted ~root:(v "./") (v "a/../") = true]}
+    {- [is_rooted ~root:(v "./") (v "../") = false]}
+    {- [is_rooted ~root:(v "../") (v "./") = true]}
+    {- [is_rooted ~root:(v "../a") (v "./") = false]}
+    {- [is_rooted (v "/a/b") (v "/a/b/c")] is [Some (v "/a/b/c")]}
+    {- [is_rooted (v "/a/b") (v "/a/b/c/")] is [Some (v "/a/b/c")]}
+    {- [is_rooted (v "/a/b") (v "/a/b/c/.")] is [Some (v "/a/b/c")]}
+    {- [is_rooted (v "/a/b") (v "../c")] is [None]}
+    {- [is_rooted (v "a/b") (v "c")] is [Some (v "a/b/c")]}
+    {- [is_rooted (v "a/b") (v "/c")] is [None]}
+    {- [is_rooted (v "a/b") (v "../c")] is [None]}
+    {- [is_rooted (v "a/b") (v "c/..")] is [Some (v "a/b")]}
+    {- [is_rooted (v "a/b") (v "c/../..")] is [None]}}
+
     {2:ex_rooted {!rooted}}
     {ul
     {- [rooted (v "/a/b") (v "c")] is [Some (v "/a/b/c")]}
@@ -817,16 +864,19 @@ end
 
     {2:ex_relativize {!relativize}}
     {ul
-    {- [relativize (v "/a/b") (v "c")] is [None]}
-    {- [relativize (v "/a/b") (v "/c")] is [Some (v "../../c")]}
-    {- [relativize (v "/a/b") (v "/c/")] is [Some (v "../../c")]}
-    {- [relativize (v "/a/b") (v "/a/b/c")] is [Some (v "c")]}
-    {- [relativize (v "/a/b") (v "/a/b")] is [Some (v ".")]}
-    {- [relativize (v "/a/b") (v "/a/b/")] is [Some (v ".")]}
-    {- [relativize (v "a/b") (v "/c")] is [None].}
-    {- [relativize (v "a/b") (v "c")] is [Some (v "../../c")]}
-    {- [relativize (v "a/b") (v "c/")] is [Some (v "../../c")]}
-    {- [relativize (v "a/b") (v "a/b/c")] is [Some (v "c")]}
+    {- [relativize ~root:(v "/a/b") (v "c")] is [None]}
+    {- [relativize ~root:(v "/a/b") (v "/c")] is [Some (v "../../c")]}
+    {- [relativize ~root:(v "/a/b") (v "/c/")] is [Some (v "../../c/")]}
+    {- [relativize ~root:(v "/a/b") (v "/c")] is [Some (v "../../c")]}
+    {- [relativize ~root:(v "/a/b") (v "/c/")] is [Some (v "../../c/")]}
+    {- [relativize ~root:(v "/a/b") (v "/a/b/c")] is [Some (v "c")]}
+    {- [relativize ~root:(v "/a/b") (v "/a/b/c/")] is [Some (v "c/")]}
+    {- [relativize ~root:(v "/a/b") (v "/a/b")] is [None]}
+    {- [relativize ~root:(v "/a/b") (v "/a/b/")] is [Some (v ".")]}
+    {- [relativize ~root:(v "a/b") (v "/c")] is [None].}
+    {- [relativize ~root:(v "a/b") (v "c")] is [Some (v "../../c")]}
+    {- [relativize ~root:(v "a/b") (v "c/")] is [Some (v "../../c/")]}
+    {- [relativize ~root:(v "a/b") (v "a/b/c")] is [Some (v "c")]}
     {- [relativize (v "a/b") (v "a/b")] is [Some (v ".")]}
     {- [relativize (v "a/b") (v "a/b/")] is [Some (v ".")]}
     {- [relativize (v "../a") (v "b")] is [None]}

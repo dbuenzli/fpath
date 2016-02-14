@@ -654,7 +654,9 @@ let rem_prefix = test "Fpath.rem_prefix" @@ fun () ->
   end;
   ()
 
+
 let rooted = test "Fpath.rooted" @@ fun () ->
+(*
   let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
   eq (Fpath.rooted (v "/a/b") (v "c")) (Some (v "/a/b/c"));
   eq (Fpath.rooted (v "/a/b") (v "/a/b/c")) (Some (v "/a/b/c"));
@@ -671,40 +673,62 @@ let rooted = test "Fpath.rooted" @@ fun () ->
   eq (Fpath.rooted (v "../../a") (v "a/..")) (Some (v "../../a/"));
   eq (Fpath.rooted (v "../../a") (v "../../b")) None;
   eq (Fpath.rooted (v "../../a") (v "../../a")) (None);
+*)
   ()
 
 let relativize = test "Fpath.relativize" @@ fun () ->
   let eq_opt = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
   let relativize root p result = match Fpath.relativize root p with
   | None -> eq_opt None result
-  | Some rp as r ->
+  | Some rel as r ->
       eq_opt r result;
-      eqp (Fpath.normalize (Fpath.append root rp)) (Fpath.normalize p);
+      eqp (Fpath.normalize (Fpath.append root rel)) (Fpath.normalize p);
   in
-(*
-  relativize (v "/a/b") (v "c") None;
-  relativize (v "/a/b") (v "/c") (Some (v "../../c"));
-  relativize (v "/a/b") (v "/c/") (Some (v "../../c/"));
-(*  relativize (v "/a/b") (v "/a/b/c") (Some (v "c")); *)
-(*  relativize (v "/a/b") (v "/a/b") (Some (v "./"));
-  relativize (v "/a/b") (v "/a/b/") (Some (v "./")); *)
+  relativize (v "/a/") (v "/a") (Some (v "../a"));
+  relativize (v "/a/") (v "/a/") (Some (v "./"));
+  relativize (v "/a/") (v "/") (Some (v "../"));
+  relativize (v "/a/") (v "/../") (Some (v "../"));
+  relativize (v "/a/") (v "/../c/d") (Some (v "../c/d"));
+  relativize (v "/a/") (v "/../c/d/") (Some (v "../c/d/"));
+  relativize (v "/") (v "/../c/d/") (Some (v "c/d/"));
+  relativize (v "/") (v "/../c/d") (Some (v "c/d"));
+  relativize (v "/") (v "/") (Some (v "./"));
+  relativize (v "/") (v "/a") (Some (v "a"));
+  relativize (v "/") (v "/a/../b") (Some (v "b"));
+  relativize (v "/") (v "/a/../b/") (Some (v "b/"));
+  relativize (v "/a/b/") (v "c") None;
+  relativize (v "/a/b/") (v "./") None;
+  relativize (v "/a/b/") (v "../") None;
+  relativize (v "/a/b/") (v "/c") (Some (v "../../c"));
+  relativize (v "/a/b/") (v "/c/") (Some (v "../../c/"));
+  relativize (v "/a/b/") (v "/c/d/e") (Some (v "../../c/d/e"));
+  relativize (v "/a/b/") (v "/c/d/e/../../f") (Some (v "../../c/f"));
+  relativize (v "/a/b/") (v "/c/d/e/../../f/") (Some (v "../../c/f/"));
+  relativize (v "/a/b/") (v "/./c/d/e/../../f/") (Some (v "../../c/f/"));
+  relativize (v "/a/b/") (v "/a/b/c") (Some (v "c"));
+  relativize (v "/a/b/") (v "/a/b") (Some (v "../b"));
+  relativize (v "/a/b/") (v "/a/b/") (Some (v "./"));
   relativize (v "/a/b/c") (v "/d/e/f") (Some (v "../../../d/e/f"));
   relativize (v "/a/b/c") (v "/a/b/d") (Some (v "../d"));
   relativize (v "a/b") (v "/c") None;
-(*
   relativize (v "a/b") (v "c") (Some (v "../../c"));
-*)
-(*  relativize (v "a/b") (v "c/") (Some (v "../../c")); *)
+  relativize (v "a/b") (v "../c") (Some (v "../../../c"));
+  relativize (v "a/b") (v "../c/") (Some (v "../../../c/"));
+  relativize (v "a/b") (v "c/") (Some (v "../../c/"));
   relativize (v "a/b") (v "a/b/c") (Some (v "c"));
-(*  relativize (v "a/b") (v "a/b") (Some (v ".")); *)
-  relativize (v "a/b") (v "a/b/") (Some (v "."));
+  relativize (v "a/b") (v "a") (Some (v "../../a"));
+  relativize (v "a/b") (v "b") (Some (v "../../b"));
+  relativize (v "a/b") (v "c") (Some (v "../../c"));
+  relativize (v "a/b/c/") (v "a/d") (Some (v "../../d"));
+  relativize (v "a/b/c/") (v "a/b") (Some (v "../../b"));
+  relativize (v "a/b/c/") (v "a/b/../../../") (Some (v "../../../../"));
+  relativize (v "a/b/c/") (v "a/b/../../../a") (Some (v "../../../../a"));
+  relativize (v "a/b") (v "a/b/") (Some (v "./"));
   relativize (v "../a") (v "b") None;
   relativize (v "../../a") (v "../b") None;
   relativize (v "../a") (v "../../b") (Some (v "../../b"));
-(*  relativize (v "a") (v "../../b") (Some (v "../../../b"));
+  relativize (v "a") (v "../../b") (Some (v "../../../b"));
   relativize (v "a/c") (v "../../b") (Some (v "../../../../b"));
-*)
-*)
   ()
 
 let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->

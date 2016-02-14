@@ -540,6 +540,58 @@ let relativize ~root p =
           let rel = List.fold_left (fun acc _ -> dotdot :: acc) [p] root in
           (Some (String.concat ~sep:dir_sep rel))
 
+let relativize ~root p =
+  let root = (* root is always interpreted as a directory *)
+    let root = normalize root in
+    if root.[String.length root - 1] = dir_sep_char then root else
+    root ^ dir_sep
+  in
+  let p = normalize p in
+  let rec walk root p = match root, p with
+  | (".." :: _, s :: _) when s <> ".." ->
+      (* [root] has too many up segments. Cannot walk down to express [p],
+           e.g. "../a" can't be expressed relative to "../../". *)
+      None
+  | (sr :: root, sp :: (_ :: _ as p)) when sr = sp ->
+      (* the next directory in [root] and [p] match and it's not the last
+         segment of [p], walk to next segment *)
+      walk root p
+  | [""], [""] ->
+      (* walk ends at the end of both path simultaneously, [p] is a
+         directory that matches exactly [root] expressed as a directory. *)
+      Some ["."; ""]
+  | root, p ->
+      (* walk ends here, either the next directory is different in
+         [root] and [p] or it is equal but it is the last one for [p]
+         and different from [""] (i.e. [p] is a file path and prefix
+         of [root]). To get to the current position from the remaining
+         root we need to go up the number of non-empty segments that
+         remain in [root] (length root - 1). To get to the path [p]
+         from the current position we just use [p] so prepending
+         length root - 1 .. segments to [p] tells us how to go from
+         the remaining root to [p]. *)
+        Some (List.fold_left (fun acc _ -> dotdot :: acc) p (List.tl root))
+  in
+  match segs root, segs p with
+  | ("" :: _, s :: _)
+  | (s :: _, "" :: _) when s <> "" ->
+      (* absolute/relative mismatch *)
+      None
+  | ["."; ""], p ->
+      (* p is relative and expressed w.r.t. "./", so it is itself. *)
+      Some p
+  | root, p ->
+      (* walk in the segments of root and p until a segment mismatches.
+         at that point express the remaining p relative to the remaining
+         root. Note that because of normalization both [root] and [p] may
+         only have initial .. segments and [root] by construction has a
+         final "" segment. *)
+      walk root p
+
+let relativize ~root p = match relativize ~root p with
+| None -> None
+| Some segs -> Some (String.concat ~sep:dir_sep segs)
+
 (* Predicates and comparison *)
 
 let is_rel_posix p = p.[0] <> dir_sep_char

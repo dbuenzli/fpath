@@ -27,15 +27,21 @@
 
 open Astring
 
-(** {1:paths Paths} *)
+(** {1:seg Separators and segments} *)
 
 val dir_sep : string
-(** [dir_sep] is the platform dependent directory separator.  This is
+(** [dir_sep] is the platform dependent natural directory separator.  This is
     ["/"] on POSIX and ["\\"] on Windows. *)
 
 val is_seg : string -> bool
 (** [is_seg s] is [true] iff [s] does not contain {!dir_sep} or a
     [0x00] byte. *)
+
+val is_rel_seg : string -> bool
+(** [is_rel_seg s] is true iff [s] is a relative segment, that is
+    ["."] or [".."].  *)
+
+(** {1:paths Paths} *)
 
 type t
 (** The type for paths. *)
@@ -87,7 +93,7 @@ $(drive):
 ]}
     The following invariant holds:
     {ul
-    {- [equal (v (vol ^ (to_string q))) p]}} *)
+    {- [equal p (v @@ vol ^ (to_string q))]}} *)
 
 val segs : t -> string list
 (** [segs p] is [p]'s {e non-empty} list of segments. Absolute paths have an
@@ -96,8 +102,8 @@ val segs : t -> string list
 
     The following invariant holds:
     {ul
-    {- [to_string (snd (split_volume p)) = (String.concat ~sep:dir_sep
-       (segs p))]}} *)
+    {- [equal p (v @@ (fst @@ split_volume p) ^ (String.concat ~sep:dir_sep
+       (segs p)))]}} *)
 
 (** {1:filedir File and directory paths} *)
 
@@ -137,17 +143,25 @@ val split_base : t -> t * t
     {- [d] is a {{!is_dir_path}directory} such that [d // b]
        represents the same path as [p] (they may however differ
        syntactically when converted to a string).}}
+    {{!ex_split_base}Examples}.
 
-    {{!ex_split_base}Examples}. *)
+    {b Note.} {{!normalize}Normalizing} [p] before using the function
+    ensures that [b] will be a {{!is_rel_seg}relative segment} iff [p] cannot
+    be named (like in ["."], ["../../"], ["/"], etc.). *)
 
 val base : t -> t
 (** [base p] is [snd (split_base p)]. *)
 
 val basename : t -> string
-(** [basename p] is the last non-empty, non-relative (i.e. not ["."]
-    or [".."]) segment of [p] or the empty string. The latter occurs on
-    {{!is_root}root paths} and on paths whose last non-empty segment is
-    relative. See also {!filename} and {!base}. {{!ex_basename}Examples}. *)
+(** [basename p] is [p]'s last non-empty empty segment if
+    {{!is_rel_seg}non-relative} or the empty string otherwise. The
+    latter occurs on {{!is_root}root paths} and on paths whose last
+    non-empty segment is relative. See also {!filename} and
+    {!base}. {{!ex_basename}Examples}.
+
+    {b Note.} {{!normalize}Normalizing} [p] before using the function
+    ensures the empty string is only returned iff [p] cannot be
+    named (like in ["."], ["../../"], ["/"], etc.) *)
 
 val parent : t -> t
 (** [parent p] is a {{!is_dir_path}directory path} that contains [p].
@@ -365,7 +379,7 @@ type ext = string
 (** The type for file extensions. *)
 
 val get_ext : ?multi:bool -> t -> ext
-(** [get_ext p] is [p]'s last segment file extension or the empty
+(** [get_ext p] is [p]'s last non-empty segment file extension or the empty
     string if there is no extension. If [multi] is [true] (defaults to
     [false]), returns the multiple file extension. {{!ex_get_ext}Examples}. *)
 
@@ -382,14 +396,15 @@ val ext_exists : ?multi:bool -> t -> bool
 
 val add_ext : ext -> t -> t
 (** [add_ext ext p] is [p] with the string [ext] concatenated to [p]'s
-    last segment. If [ext] doesn't start with a ['.'] one is prefixed to it
-    before concatenation except if [ext] is [""]. {{!ex_add_ext}Examples}.
+    last non-empty segment. If [ext] doesn't start with a ['.'] one is
+    prefixed to it before concatenation except if [ext] is [""].
+    {{!ex_add_ext}Examples}.
 
     @raise Invalid_argument if {!is_seg}[ ext] is [false]. *)
 
 val rem_ext : ?multi:bool -> t -> t
-(** [rem_ext p] is [p] with the file extension of [p]'s last segment
-    removed. If [multi] is [true] (default to [false]), the multiple
+(** [rem_ext p] is [p] with the file extension of [p]'s last non-empty
+    segment removed. If [multi] is [true] (default to [false]), the multiple
     file extension is removed. {{!ex_rem_ext}Examples}. *)
 
 val set_ext : ?multi:bool -> ext -> t -> t
@@ -398,12 +413,10 @@ val set_ext : ?multi:bool -> ext -> t -> t
     @raise Invalid_argument if {!is_seg}[ ext] is [false]. *)
 
 val split_ext : ?multi:bool -> t -> t * ext
-(** [split_ext ?multi p] is [(rem_ext ?multi p, ext ?multi p)].
-
-    Using [(p', ext)] for the resulting pair, the following invariant
-    holds:
+(** [split_ext ?multi p] is [(rem_ext ?multi p, ext ?multi p)]. If this is
+    [(p', ext)] the following invariant holds:
     {ul
-    {- [equal (v (to_string p' ^ ext)) p]}} *)
+    {- [equal (v (add_ext p' ext)) p]}} *)
 
 val ( + ) : t -> ext -> t
 (** [p + ext] is [add_ext ext p]. Left associative. *)

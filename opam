@@ -10,6 +10,7 @@ license: "BSD-3-Clause"
 available: [ ocaml-version >= "4.01.0"]
 depends: [
    "ocamlfind" {build}
+   "ocamlbuild" {build}
    "astring"
 ]
 build:

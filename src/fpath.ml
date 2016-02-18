@@ -499,7 +499,7 @@ let _relativize ~root p =
       walk root p
   | [""], [""] ->
       (* walk ends at the end of both path simultaneously, [p] is a
-         directory that matches exactly [root] expressed as a directory. *)
+         directory that matches exactly [root] interpreted as a directory. *)
       Some (segs_to_path ["."; ""])
   | root, p ->
       (* walk ends here, either the next directory is different in
@@ -509,7 +509,7 @@ let _relativize ~root p =
          root we need to go up the number of non-empty segments that
          remain in [root] (length root - 1). To get to the path [p]
          from the current position we just use [p] so prepending
-         length root - 1 .. segments to [p] tells us how to go from
+         length root - 1 ".." segments to [p] tells us how to go from
          the remaining root to [p]. *)
       let segs = List.fold_left (fun acc _ -> dotdot :: acc) p (List.tl root) in
       Some (segs_to_path segs)
@@ -520,7 +520,7 @@ let _relativize ~root p =
       (* absolute/relative mismatch *)
       None
   | ["."; ""], p ->
-      (* p is relative and expressed w.r.t. "./", so it is itself. *)
+      (* p is relative and must be expressed w.r.t. "./", so it is itself. *)
       Some (segs_to_path p)
   | root, p ->
       (* walk in the segments of root and p until a segment mismatches.

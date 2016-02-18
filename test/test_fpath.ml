@@ -706,6 +706,7 @@ let relativize = test "Fpath.relativize" @@ fun () ->
   relativize (v "../") (v "./") None;
   relativize (v "../a") (v "b") None;
   relativize (v "../../a") (v "../b") None;
+  relativize (v "../a") (v "../b/c") (Some (v "../b/c"));
   relativize (v "../a") (v "../../b") (Some (v "../../b"));
   relativize (v "a") (v "../../b") (Some (v "../../../b"));
   relativize (v "a/c") (v "../../b") (Some (v "../../../../b"));

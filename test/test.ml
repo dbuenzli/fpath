@@ -5,7 +5,7 @@
   ---------------------------------------------------------------------------*)
 
 let tests () = Testing.run
-    [ Test_path.suite; ]
+    [ Test_fpath.suite; ]
 
 let run () = tests (); Testing.log_results ()
 

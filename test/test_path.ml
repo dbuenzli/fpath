@@ -858,9 +858,14 @@ let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
     eq_bool (Fpath.is_dotfile (v "\\\\.\\dev\\.\\")) false;
     eq_bool (Fpath.is_dotfile (v "\\\\server\\share\\.")) false;
     eq_bool (Fpath.is_dotfile (v "\\\\server\\share\\.\\")) false;
-    eq_bool (Fpath.is_dotfile (v "C:.")) true;
-    eq_bool (Fpath.is_dotfile (v "C:./")) true;
+    eq_bool (Fpath.is_dotfile (v "C:.")) false;
+    eq_bool (Fpath.is_dotfile (v "C:./")) false;
     eq_bool (Fpath.is_dotfile (v "C:./a/..")) false;
+    eq_bool (Fpath.is_dotfile (v "C:..")) false;
+    eq_bool (Fpath.is_dotfile (v "C:../")) false;
+    eq_bool (Fpath.is_dotfile (v "C:../a/..")) false;
+    eq_bool (Fpath.is_dotfile (v "C:../a/...")) true;
+    eq_bool (Fpath.is_dotfile (v "C:...")) true;
   end;
   ()
 

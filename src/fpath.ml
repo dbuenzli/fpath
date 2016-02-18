@@ -117,8 +117,8 @@ module Windows = struct
     | _ -> split_before j
 
   let is_root p =
-    let _, p = sub_split_volume p in
-    String.Sub.get_head p = dir_sep_char
+    let _, path = sub_split_volume p in
+    String.Sub.length path = 1 && String.Sub.get path 0 = dir_sep_char
 end
 
 module Posix = struct
@@ -285,7 +285,7 @@ let filename p = match String.Sub.to_string (sub_last_seg p) with
 
 (* Base and parent paths *)
 
-let sub_is_root p = String.Sub.get_head p = dir_sep_char
+let sub_is_root p = String.Sub.length p = 1 && String.Sub.get p 0 = dir_sep_char
 
 let _split_base p =
   let dir, last_seg = _split_last_seg p in
@@ -355,8 +355,8 @@ let parent = if windows then parent_windows else parent_posix
 let rem_empty_seg_windows p =
   let vol, path = Windows.sub_split_volume p in
   if sub_is_root path then p else
-  let max = String.Sub.length path - 1 in
-  if String.Sub.get path max <> dir_sep_char then p else
+  let max = String.Sub.stop_pos path - 1 in
+  if String.get p max <> dir_sep_char then p else
   String.with_index_range p ~last:(max - 1)
 
 let rem_empty_seg_posix p = match String.length p with
@@ -558,17 +558,37 @@ let is_rel = if windows then is_rel_windows else is_rel_posix
 let is_abs p = not (is_rel p)
 let is_root = if windows then Windows.is_root else Posix.is_root
 
-let is_current_dir_posix p = String.equal p dot || String.equal p dot_dir
-let is_current_dir_windows p =
+let is_current_dir_posix ?(prefix = false) p = match prefix with
+| false ->  String.equal p dot || String.equal p dot_dir
+| true -> String.equal p dot || String.is_prefix dot_dir p
+
+let is_current_dir_windows ?(prefix = false) p =
   if Windows.is_unc_path p then false else
   let start = Windows.non_unc_path_start p in
   match String.length p - start with
   | 1 -> p.[start] = '.'
-  | 2 -> p.[start] = '.' && p.[start + 1] = dir_sep_char
+  | n when n = 2 || prefix -> p.[start] = '.' && p.[start + 1] = dir_sep_char
   | _ -> false
 
 let is_current_dir =
   if windows then is_current_dir_windows else is_current_dir_posix
+
+let is_parent_dir_posix ?(prefix = false) p = match prefix with
+| false -> String.equal p dotdot || String.equal p dotdot_dir
+| true -> String.equal p dotdot || String.is_prefix dotdot_dir p
+
+let is_parent_dir_windows ?(prefix = false) p =
+  if Windows.is_unc_path p then false else
+  let start = Windows.non_unc_path_start p in
+  match String.length p - start with
+  | 1 -> false
+  | 2 -> p.[start] = '.' && p.[start + 1] = '.'
+  | n when n = 3 || prefix ->
+      p.[start] = '.' && p.[start + 1] = '.' && p.[start + 2] = dir_sep_char
+  | _ -> false
+
+let is_parent_dir =
+  if windows then is_parent_dir_windows else is_parent_dir_posix
 
 let is_dotfile p = match basename p with | "" -> false | s -> s.[0] = '.'
 

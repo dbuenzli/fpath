@@ -368,8 +368,8 @@ val dump : Format.formatter -> t -> unit
     {b Warning.} The following functions act on paths whose
     {{!basename}basename} is non empty and do nothing otherwise.
     {{!normalize}Normalizing} [p] before using the functions ensures
-    that the functions do nothing iff [p] cannot be named (like in
-    ["."], ["../../"], ["/"], etc.). *)
+    that the functions do nothing iff [p] cannot be named, see
+    {!basename}. *)
 
 type ext = string
 (** The type for file extensions. *)
@@ -385,35 +385,34 @@ val has_ext : ext -> t -> bool
     If [e] doesn't start with a ['.'] one is prefixed before making
     the test. {{!ex_has_ext}Examples}. *)
 
-val ext_exists : ?multi:bool -> t -> bool
-(** [ext_exists ~multi p] is [true] iff [p]'s last non-empty
-    segment has an extension.  If [multi] is [true] (default to [false])
-    returns [true] iff [p] has {e more than one} extension.
-    {{!ex_ext_exists}Examples}. *)
+val exists_ext : ?multi:bool -> t -> bool
+(** [exists_ext ~multi p] is [true] iff [p]'s {{!basename}basename}
+    file extension is not empty. If [multi] is [true] (default to
+    [false]) returns [true] iff [p] has {e more than one} extension.
+    {{!ex_exists_ext}Examples}. *)
 
 val add_ext : ext -> t -> t
 (** [add_ext ext p] is [p] with the string [ext] concatenated to [p]'s
-    last non-empty segment. If [ext] doesn't start with a ['.'] one is
-    prefixed to it before concatenation except if [ext] is [""].
-    {{!ex_add_ext}Examples}.
+    {{!basename}basename}, if any. If [ext] doesn't start with a ['.']
+    one is prefixed to it before concatenation except if [ext] is
+    [""].  {{!ex_add_ext}Examples}.
 
     @raise Invalid_argument if {!is_seg}[ ext] is [false]. *)
 
 val rem_ext : ?multi:bool -> t -> t
-(** [rem_ext p] is [p] with the file extension of [p]'s last non-empty
-    segment removed. If [multi] is [true] (default to [false]), the multiple
-    file extension is removed. {{!ex_rem_ext}Examples}. *)
+(** [rem_ext p] is [p] with the extension of [p]'s
+    {{!basename}basename} removed. If [multi] is [true] (default to
+    [false]), the multiple file extension is
+    removed. {{!ex_rem_ext}Examples}. *)
 
 val set_ext : ?multi:bool -> ext -> t -> t
-(** [set_ext ?multi p ext] is [add_ext ext (rem_ext ?multi p)].
-
-    @raise Invalid_argument if {!is_seg}[ ext] is [false]. *)
+(** [set_ext ?multi ext p] is [add_ext ext (rem_ext ?multi p)]. *)
 
 val split_ext : ?multi:bool -> t -> t * ext
-(** [split_ext ?multi p] is [(rem_ext ?multi p, ext ?multi p)]. If this is
-    [(p', ext)] the following invariant holds:
+(** [split_ext ?multi p] is [(rem_ext ?multi p, get_ext ?multi p)]. If this is
+    [(q, ext)] the following invariant holds:
     {ul
-    {- [equal (v (add_ext p' ext)) p]}} *)
+    {- [equal p (add_ext q ext)]}} *)
 
 val ( + ) : t -> ext -> t
 (** [p + ext] is [add_ext ext p]. Left associative. *)
@@ -923,62 +922,75 @@ end
     {2:ex_get_ext {!get_ext}}
     {ul
     {- [get_ext (v "/") = ""]}
-    {- [get_ext (v "/a/b") = ""]}
-    {- [get_ext (v "a.mli/.") = ""]}
-    {- [get_ext (v "a.mli/..") = ""]}
+    {- [get_ext (v "a/b") = ""]}
+    {- [get_ext (v "a/b.mli/..") = ""]}
+    {- [get_ext (v "a/b.mli/...") = ""]}
+    {- [get_ext (v "a/b.") = "."]}
+    {- [get_ext (v "a/b.mli") = ".mli"]}
+    {- [get_ext ~multi:true (v "a/b.mli") = ".mli"]}
+    {- [get_ext (v "a/b.mli/") = ".mli"]}
     {- [get_ext (v "a/.ocamlinit") = ""]}
-    {- [get_ext (v "a/.ocamlinit/") = ""]}
-    {- [get_ext (v "/a/b.") = "."]}
-    {- [get_ext (v "/a/b.mli") = ".mli"]}
-    {- [get_ext (v "a.tar.gz") = ".gz"]}
     {- [get_ext (v "a/.emacs.d") = ".d"]}
     {- [get_ext (v "a/.emacs.d/") = ".d"]}
-    {- [get_ext ~multi:true (v "/a/b.mli") = ".mli"]}
-    {- [get_ext ~multi:true (v "a.tar.gz") = ".tar.gz"]}
     {- [get_ext ~multi:true (v "a/.emacs.d") = ".d"]}
-    {- [get_ext ~multi:true (v "a/.emacs.d/") = ".d/"]}}
+    {- [get_ext (v "a.tar.gz") = ".gz"]}
+    {- [get_ext ~multi:true  (v "a.tar.gz") = ".tar.gz"]}}
 
     {2:ex_has_ext {!has_ext}}
     {ul
-    {- [has_ext ".mli" (v "a/b.mli")  = true]}
-    {- [has_ext "mli" (v "a/b.mli")  = true]}
-    {- [has_ext "mli" (v "a/b.mli/")  = true]}
-    {- [has_ext "mli" (v "a/bmli")  = false]}
+    {- [has_ext "mli" (v "a/b.mli") = true]}
+    {- [has_ext ".mli" (v "a/b.mli") = true]}
+    {- [has_ext ".mli" (v "a/b.mli/") = true]}
+    {- [has_ext ".mli" (v "a/bmli") = false]}
     {- [has_ext ".tar.gz" (v "a/f.tar.gz") = true]}
     {- [has_ext "tar.gz" (v "a/f.tar.gz") = true]}
-    {- [has_ext ".tar" (v "a/f.tar.gz") = false]}}
+    {- [has_ext ".gz" (v "a/f.tar.gz") = true]}
+    {- [has_ext ".tar" (v "a/f.tar.gz") = false]}
+    {- [has_ext ".cache" (v "a/.cache") = false]}
+    {- [has_ext "" (v "a/b") = false]}
+    {- [has_ext "" (v "a/b.") = true]}
+    {- [has_ext "." (v "a/b.") = true]}}
 
-    {2:ex_ext_exists {!ext_exists}}
+    {2:ex_exists_ext {!exists_ext}}
     {ul
-    {- [ext_exists (v "a/f") = false]}
-    {- [ext_exists (v "a/f.") = true]}
-    {- [ext_exists (v "a/f.gz") = true]}
-    {- [ext_exists (v "a/f.tar.gz") = true]}
-    {- [ext_exists (v "a/f.tar.gz/") = true]}
-    {- [ext_exists (v ".emacs.d") = true]}
-    {- [ext_exists (v ".emacs.d/") = true]}
-    {- [ext_exists ~multi:true (v "a/f.gz") = false]}
-    {- [ext_exists ~multi:true (v "a/f.tar.gz") = true]}
-    {- [ext_exists ~multi:true (v ".emacs.d") = false]}}
+    {- [exists_ext (v "a/f") = false]}
+    {- [exists_ext (v "a/f.") = true]}
+    {- [exists_ext (v "a/f.gz") = true]}
+    {- [exists_ext ~multi:true (v "a/f.gz") = false]}
+    {- [exists_ext (v "a/f.tar.gz") = true]}
+    {- [exists_ext ~multi:true (v "a/f.tar.gz") = true]}
+    {- [exists_ext (v "a/f.tar.gz/") = true]}
+    {- [exists_ext (v ".emacs.d") = true]}
+    {- [exists_ext (v ".emacs.d/") = true]}
+    {- [exists_ext (v ".ocamlinit") = true]}}
 
     {2:ex_add_ext {!add_ext}}
     {ul
-    {- [equal (add_ext ".mli" (v "a/b")) (v "a/b.mli")]}
     {- [equal (add_ext "mli" (v "a/b")) (v "a/b.mli")]}
+    {- [equal (add_ext ".mli" (v "a/b")) (v "a/b.mli")]}
+    {- [equal (add_ext ".mli" (v "a/b/")) (v "a/b.mli/")]}
+    {- [equal (add_ext ".mli" (v "/")) (v "/")]}
+    {- [equal (add_ext ".mli" (v "a/b/..")) (v "a/b/..")]}
     {- [equal (add_ext "." (v "a/b")) (v "a/b.")]}
     {- [equal (add_ext "" (v "a/b")) (v "a/b")]}
-    {- [equal (add_ext ".tar.gz" (v "a/f")) (v "a/f.tar.gz")]}
     {- [equal (add_ext "tar.gz" (v "a/f")) (v "a/f.tar.gz")]}
-    {- [equal (add_ext ".gz" (v "a/f.tar") ) (v "a/f.tar.gz")]}
-    {- [equal (add_ext "gz" (v "a/f.tar") ) (v "a/f.tar.gz")]}}
+    {- [equal (add_ext ".tar.gz" (v "a/f")) (v "a/f.tar.gz")]}
+    {- [equal (add_ext "gz" (v "a/f.tar") ) (v "a/f.tar.gz")]}
+    {- [equal (add_ext ".gz" (v "a/f.tar") ) (v "a/f.tar.gz")]}}
 
     {2:ex_rem_ext {!rem_ext}}
     {ul
+    {- [equal (rem_ext @@ v "/") (v "/")]}
     {- [equal (rem_ext @@ v "/a/b") (v "/a/b")]}
     {- [equal (rem_ext @@ v "/a/b.mli") (v "/a/b")]}
+    {- [equal (rem_ext @@ v "/a/b.mli/") (v "/a/b")]}
+    {- [equal (rem_ext @@ v "/a/b.mli/..") (v "/a/b.mli/..")]}
+    {- [equal (rem_ext @@ v "/a/b.mli/.") (v "/a/b.mli/.")]}
     {- [equal (rem_ext @@ v "a/.ocamlinit") (v "a/.ocamlinit")]}
+    {- [equal (rem_ext @@ v "a/.emacs.d") (v "a/.emacs")]}
     {- [equal (rem_ext @@ v "f.tar.gz") (v "f.tar")]}
-    {- [equal (rem_ext ~multi:true @@ v "f.tar.gz") (v "f")]}} *)
+    {- [equal (rem_ext ~multi:true @@ v "f.tar.gz") (v "f")]}
+    {- [equal (rem_ext ~multi:true @@ v "f.tar.gz/") (v "f")]}} *)
 
 (*---------------------------------------------------------------------------
    Copyright 2014 Daniel C. Bünzli.

@@ -28,11 +28,9 @@ let dir_sep_sub = String.sub dir_sep
 let not_dir_sep c = c <> dir_sep_char
 
 let dot = "."
-let dot_sub = String.sub dot
 let dot_dir = dot ^ dir_sep
 let dot_dir_sub = String.sub dot_dir
 let dotdot = ".."
-let dotdot_sub = String.sub dotdot
 let dotdot_dir = dotdot ^ dir_sep
 let dotdot_dir_sub = String.sub dotdot_dir
 
@@ -169,8 +167,17 @@ let sub_last_non_empty_seg =
   sub_last_non_empty_seg_posix
 
 let is_rel_seg = function "." | ".." -> true | _ -> false
-let sub_is_rel_seg seg =
-  String.Sub.(equal_bytes dot_sub seg || equal_bytes dotdot_sub seg)
+
+let sub_is_rel_seg seg = match String.Sub.length seg with
+| 1 when String.Sub.get seg 0 = '.' -> true
+| 2 when String.Sub.get seg 0 = '.' && String.Sub.get seg 1 = '.' -> true
+| _ -> false
+
+let sub_is_dir_seg seg = match String.Sub.length seg with
+| 0 -> true
+| 1 when String.Sub.get seg 0 = '.' -> true
+| 2 when String.Sub.get seg 0 = '.' && String.Sub.get seg 1 = '.' -> true
+| _ -> false
 
 let segs_of_path p = String.cuts ~sep:dir_sep p
 let segs_to_path segs = String.concat ~sep:dir_sep segs
@@ -268,12 +275,7 @@ let segs = if windows then segs_windows else segs_posix
 
 (* File and directory paths *)
 
-let is_dir_path p =
-  let seg = sub_last_seg p in
-  String.Sub.is_empty seg ||
-  String.Sub.equal_bytes seg dot_sub ||
-  String.Sub.equal_bytes seg dotdot_sub
-
+let is_dir_path p = sub_is_dir_seg (sub_last_seg p)
 let is_file_path p = not (is_dir_path p)
 let to_dir_path p = add_seg p ""
 
@@ -589,70 +591,64 @@ let ext_sep_sub = String.Sub.of_char ext_sep_char
 let eq_ext_sep c = c = ext_sep_char
 let neq_ext_sep c = c <> ext_sep_char
 
-let rec multi_ext_sub seg =
-  let seg = String.Sub.drop ~sat:eq_ext_sep seg in
-  String.Sub.drop ~sat:neq_ext_sep seg
+let rec sub_multi_ext seg =
+  let first_not_sep = String.Sub.drop ~sat:eq_ext_sep seg in
+  String.Sub.drop ~sat:neq_ext_sep first_not_sep
 
-let single_ext_sub seg =
-  let seg = String.Sub.drop ~sat:eq_ext_sep seg in
+let sub_single_ext seg =
   let name_dot, ext = String.Sub.span ~rev:true ~sat:neq_ext_sep seg in
-  if String.Sub.length name_dot = 0 then String.Sub.empty else
-  String.Sub.extend ~max:1 ~rev:true ext
+  if String.Sub.exists neq_ext_sep name_dot
+  then String.Sub.extend ~max:1 ~rev:true ext
+  else String.Sub.empty
 
-let ext_sub ?(multi = false) seg =
-  if multi then multi_ext_sub seg else single_ext_sub seg
+let sub_ext ?(multi = false) seg =
+  if multi then sub_multi_ext seg else sub_single_ext seg
 
-let get_ext ?multi p =
-  String.Sub.to_string (ext_sub ?multi (sub_last_non_empty_seg p))
+let sub_get_ext ?multi p = sub_ext ?multi (sub_last_non_empty_seg p)
+let get_ext ?multi p = String.Sub.to_string (sub_get_ext ?multi p)
 
 let has_ext e p =
-  let seg = String.Sub.drop ~sat:eq_ext_sep (sub_last_non_empty_seg p) in
-  if not (String.Sub.is_suffix (String.sub e) seg) then false else
-  if not (String.is_empty e) && e.[0] = ext_sep_char then true else
-  (* check there's a dot before the suffix in [seg] *)
-  let dot_index = String.Sub.length seg - String.length e - 1 in
-  if dot_index <= 0 then false else
-  String.Sub.get seg dot_index = ext_sep_char
-
-let ext_exists ?(multi = false) p =
-  let ext = ext_sub ~multi (sub_last_non_empty_seg p) in
-  if not multi then not (String.Sub.is_empty ext) else
+  let ext = sub_get_ext ~multi:true p in
   if String.Sub.is_empty ext then false else
-  match String.Sub.find ~rev:true eq_ext_sep ext with (* find another dot *)
-  | Some c -> not (String.Sub.start_pos ext = String.Sub.start_pos c)
-  | None -> assert false
+  if not (String.(Sub.is_suffix (sub e) ext)) then false else
+  if not (String.is_empty e) && e.[0] = ext_sep_char then true else
+  (* Check there's a dot before the suffix [e] in [ext] *)
+  let dot_index = String.Sub.length ext - String.length e - 1 in
+  String.Sub.get ext dot_index = ext_sep_char
+
+let exists_ext ?(multi = false) p =
+  let ext = sub_get_ext ~multi p in
+  if multi then String.Sub.exists eq_ext_sep (String.Sub.tail ext) else
+  not (String.Sub.is_empty ext)
 
 let add_ext e p =
+  if String.is_empty e then p else
   if not (is_seg e) then invalid_arg (err_invalid_ext e) else
-  let maybe_dot =
-    if String.is_empty e then "" else
-    if e.[0] <> ext_sep_char then ext_sep else ""
-  in
-  String.concat [p; maybe_dot; e]
+  let seg = sub_last_non_empty_seg p in
+  if sub_is_dir_seg seg then p else
+  let e_has_dot = e.[0] = ext_sep_char in
+  let maybe_dot = if e_has_dot then String.Sub.empty else ext_sep_sub in
+  let has_empty = p.[String.length p - 1] = dir_sep_char in
+  let maybe_empty = if has_empty then dir_sep_sub else String.Sub.empty in
+  let seg_end = String.Sub.stop_pos seg - 1 in
+  let prefix = String.sub_with_index_range ~last:seg_end p in
+  let path = [prefix; maybe_dot; String.sub e; maybe_empty] in
+  String.Sub.(base_string (concat path))
 
-let rem_ext ?multi p =
-  let ext = ext_sub ?multi (sub_last_seg p) in
-  if String.Sub.is_empty ext then p else
-  String.with_index_range p ~last:(String.Sub.start_pos ext - 1)
+let _split_ext ?multi p =
+  let ext = sub_get_ext ?multi p in
+  if String.Sub.is_empty ext then p, ext else
+  let before_ext = String.Sub.start_pos ext - 1 in
+  if String.Sub.stop_pos ext = String.length p
+  then String.with_index_range p ~last:before_ext, ext else
+  let prefix = String.sub_with_index_range p ~last:before_ext in
+  String.Sub.(base_string (concat [prefix; dir_sep_sub])), ext
 
-let set_ext ?multi e p =
-  if not (is_seg e) then invalid_arg (err_invalid_ext e) else
-  let ext = ext_sub ?multi (sub_last_seg p) in
-  let p =
-    if String.Sub.is_empty ext then (String.sub p) else
-    String.Sub.extend ~rev:true (String.Sub.start ext)
-  in
-  let maybe_dot =
-    if String.is_empty e || e.[0] <> ext_sep_char then ext_sep_sub else
-    String.Sub.empty
-  in
-  String.Sub.(to_string (concat [p; maybe_dot; String.sub e]))
-
+let rem_ext ?multi p = fst (_split_ext ?multi p)
+let set_ext ?multi e p = add_ext e (rem_ext ?multi p)
 let split_ext ?multi p =
-  let ext = ext_sub ?multi (sub_last_seg p) in
-  if String.Sub.is_empty ext then (p, "") else
-  (String.with_index_range p ~last:(String.Sub.start_pos ext - 1),
-   String.Sub.to_string ext)
+  let p, ext = _split_ext ?multi p in
+  p, String.Sub.to_string ext
 
 let ( + ) p e = add_ext e p
 let ( -+ ) p e = set_ext e p

@@ -19,6 +19,12 @@
        distinguishes {e directory paths}
        (["a/b/"]) from {e file paths} (["a/b"]).}}
 
+    The path segments ["."] and [".."] are {{!is_rel_seg}{e relative
+    path segments}} that respectively denote the current and parent
+    directory. The {{!basename}{e basename}} of a path is its last
+    non-empty segment if it is not a relative path segment and the empty
+    string otherwise.
+
     Consult a few {{!tips}important tips}.
 
     {b Note.} [Fpath] processes paths without accessing the file system.
@@ -34,8 +40,8 @@ val dir_sep : string
     ["/"] on POSIX and ["\\"] on Windows. *)
 
 val is_seg : string -> bool
-(** [is_seg s] is [true] iff [s] does not contain {!dir_sep} or a
-    [0x00] byte. *)
+(** [is_seg s] is [true] iff [s] does not contain {!dir_sep} or ['/'] or
+    a [0x00] byte. *)
 
 val is_rel_seg : string -> bool
 (** [is_rel_seg s] is true iff [s] is a relative segment, that is
@@ -50,11 +56,11 @@ val v : string -> t
 (** [v s] is the string [s] as path.
 
     @raise Invalid_argument if [s] is not a {{!of_string}valid path}. Use
-    {!of_string} to deal with foreign input and errors. *)
+    {!of_string} to deal with untrusted input and errors. *)
 
 val add_seg : t -> string -> t
-(** [add_seg p seg] adds [seg] at the end of [p]. If [seg] is [""]
-    it is only added if [p] has no final empty segment. {{!ex_add_seg}Examples}.
+(** [add_seg p seg] adds [seg] at the end of [p] if [p]'s last segment
+    is non-empty and replaces it otherwise. {{!ex_add_seg}Examples}.
 
     @raise Invalid_argument if {!is_seg}[ seg] is [false]. *)
 
@@ -66,7 +72,7 @@ val append : t -> t -> t
     {ul
     {- If [p'] is absolute or has a non-empty {{!split_volume}volume} then
        [p'] is returned.}
-    {- Otherwise appends [p'] to [p] using a {!dir_sep} if needed.}}
+    {- Otherwise appends [p'] segments to [p] using {!add_seg}.}}
     {{!ex_append}Examples}. *)
 
 val ( // ) : t -> t -> t
@@ -105,28 +111,37 @@ val segs : t -> string list
     {- [equal p (v @@ (fst @@ split_volume p) ^ (String.concat ~sep:dir_sep
        (segs p)))]}} *)
 
-(** {1:filedir File and directory paths} *)
+(** {1:filedir File and directory paths}
+
+    {b Note.} The following properties are derived from the syntactic
+    semantics of paths which can be different from the one a file
+    system attributes to them. *)
 
 val is_dir_path : t -> bool
-(** [is_dir_path p] is [true] iff [p] represents a directory. This means
-    that [p]'s last segment is either [""], ["."] or [".."].
+(** [is_dir_path p] is [true] iff [p] represents a directory. This
+    means that [p]'s last segment is either [""], ["."] or [".."].
+    The property is invariant with respect to {{!normalize}normalization}.
     {{!ex_is_dir_path}Examples}. *)
 
 val is_file_path : t -> bool
 (** [is_file_path p] is [true] iff [p] represents a file. This is the
     negation of {!is_dir_path}. This means that [p]'s last segment is
-    neither empty nor ["."], nor [".."]. {{!ex_is_file_path}Examples}. *)
+    neither empty nor ["."], nor [".."]. The property is invariant
+    with respect to {{!normalize}normalization}.
+    {{!ex_is_file_path}Examples}. *)
 
 val to_dir_path : t -> t
 (** [to_dir_path p] is {!add_seg}[ p ""] it ensure that the result
-    represents a {{!is_dir_path}directory} (and, if converted to
-    a string, that it will end with a {!dir_sep}).
+    represents a {{!is_dir_path}directory} and, if converted to a
+    string, that it ends with a {!dir_sep}.
     {{!ex_to_dir_path}Examples}. *)
 
 val filename : t -> string
 (** [filename p] is the file name of [p]. This is the last segment of
     [p] if [p] is a {{!is_file_path}file path} and the empty string
-    otherwise. See also {!basename}. {{!ex_filename}Examples}. *)
+    otherwise. The result is invariant with respect to
+    {{!normalize}normalization}.  See also
+    {!basename}. {{!ex_filename}Examples}. *)
 
 (** {1:parentbase Base and parent paths} *)
 
@@ -141,22 +156,22 @@ val split_base : t -> t * t
        {{!is_root}root path} there are no such segments and [b]
        is ["./"].}
     {- [d] is a {{!is_dir_path}directory} such that [d // b]
-       represents the same path as [p] (they may however differ
-       syntactically when converted to a string).}}
+       represents the same path as [p]. They may however differ
+       syntactically when converted to a string.}}
     {{!ex_split_base}Examples}.
 
     {b Note.} {{!normalize}Normalizing} [p] before using the function
-    ensures that [b] will be a {{!is_rel_seg}relative segment} iff [p] cannot
+    ensures that [b] is a {{!is_rel_seg}relative segment} iff [p] cannot
     be named (like in ["."], ["../../"], ["/"], etc.). *)
 
 val base : t -> t
 (** [base p] is [snd (split_base p)]. *)
 
 val basename : t -> string
-(** [basename p] is [p]'s last non-empty empty segment if
-    {{!is_rel_seg}non-relative} or the empty string otherwise. The
-    latter occurs on {{!is_root}root paths} and on paths whose last
-    non-empty segment is relative. See also {!filename} and
+(** [basename p] is [p]'s last non-empty segment if non-relative or
+    the empty string otherwise. The latter occurs only on {{!is_root}root
+    paths} and on paths whose last non-empty segment is a
+    {{!is_rel_seg}relative segment}.  See also {!filename} and
     {!base}. {{!ex_basename}Examples}.
 
     {b Note.} {{!normalize}Normalizing} [p] before using the function
@@ -174,12 +189,11 @@ val parent : t -> t
 (** {1:norm Normalization} *)
 
 val rem_empty_seg : t -> t
-(** [rem_empty_seg p] removes the empty segment of [p] if it
-    exists and [p] is not a {{!is_root}root path}. This ensure that if
-    [p] is converted to a string it will not have a trailing
-    {!dir_sep} unless [p] is a root path. Note that this may affect
-    [p]'s {{!is_dir_path}directoryness}.
-    {{!ex_rem_empty_seg}Examples}. *)
+(** [rem_empty_seg p] removes the empty segment of [p] if it exists
+    and [p] is not a {{!is_root}root path}. This ensure that if [p] is
+    converted to a string it will not have a trailing {!dir_sep}
+    unless [p] is a root path. Note that this may affect [p]'s
+    {{!is_dir_path}directoryness}.  {{!ex_rem_empty_seg}Examples}. *)
 
 val normalize : t -> t
 (** [normalize p] is a path that represents the same path as [p],
@@ -197,13 +211,16 @@ val normalize : t -> t
 
 (** {1:prefix Prefixes}
 
-    {b Warning.} The {{!is_prefix}prefix property} between paths does
-    not entail directory containement in general, as it is, by
-    definition, a syntactic test. For example [is_prefix (v "..")  (v
-    "../..")]  is [true], but the second path is not contained in the
-    first one or [is_prefix (v "..") (v ".")]  is [false]. However, on
-    {{!normalize}normalized}, {{!is_abs}absolute} paths, the prefix relation
-    does entail directory containement. See also {!rooted}. *)
+    {b Warning.} The syntactic {{!is_prefix}prefix relation} between
+    paths does not, in general, entail directory containement. The following
+    examples show this:
+{[
+is_prefix (v "..") (v "../..") = true
+is_prefix (v "..") (v ".") = false
+]}
+    However, on {{!normalize}normalized}, {{!is_abs}absolute} paths,
+    the prefix relation does entail directory containement. See also
+    {!is_rooted}. *)
 
 val is_prefix : t -> t -> bool
 (** [is_prefix prefix p] is [true] if [prefix] is a prefix of
@@ -235,8 +252,8 @@ val rem_prefix : t -> t -> t option
        prefix [prefix] and preserves [p]'s
        {{!is_dir_path}directoryness}. This means that [q] is a always
        {{!is_rel}relative} and that the path [prefix // q] and [p] represent the
-       same paths (they may however differ syntactically when
-       converted to a string).}}
+       same paths. They may however differ syntactically when
+       converted to a string.}}
     {{!ex_rem_prefix}Examples}. *)
 
 (** {1 Roots and relativization} *)
@@ -246,38 +263,11 @@ val relativize : root:t -> t -> t option
     {ul
     {- [Some q] if there exists a {{!is_relative}relative} path [q] such
        that [root // q] and [p] represent the same paths,
-       {{!is_dir_path}directoryness} included (they may however differ
-       syntactically when converted to a string).}
+       {{!is_dir_path}directoryness} included. They may however differ
+       syntactically when converted to a string.}
     {- [None] otherwise}}
 
     {{!ex_relativize}Examples.} *)
-
-(*
-
-val is_rooted : root:t -> t -> bool
-(** [is_rooted root p] is [true] iff [p] is equal or contained in the
-    directory represented by [root] (if [root] is a {{!is_file_path}file path},
-    the path {!to_dir_path}[ root] is used instead).
-    {{!ex_is_rooted}Examples.} *)
-
-val rooted_append : ?normalized:bool -> root:t -> t -> t option
-(** [rooted_append ~root p] {{!appends}appends} [p] to [root] and
-    returns a result iff [is_rooted root (append root t)] is [true].
-    If [normalized] is [true] the result is normalized.
-    {{!ex_rooted_append}Examples.} *)
-*)
-
-(*
-
-
- the path [p] is contained in path [root].
-    {ul
-    {- [None] if [prefix]
-       [is_prefix (normalize root) (normalize @@ append root p) = false].}
-    {- [Some (normalize @@ append root p)] otherwise.}}
-       In other words it ensures that an absolute path [p] or a relative
-       path [p] expressed w.r.t. [root] expresses a path that is
-       within the [root] file hierarchy. {{!ex_rooted}Examples}. *)
 
 (** {1:predicates Predicates and comparison} *)
 
@@ -317,8 +307,8 @@ val is_parent_dir : t -> bool
 *)
 
 val is_dotfile : t -> bool
-(** [is_dotfile p] is [true] iff [p]'s last non-empty segment is not
-    ["."] or [".."] and starts with a ['.']. {{!ex_is_dotfile}Examples}.
+(** [is_dotfile p] is [true] iff [p]'s {{!basename}basename} is non
+    empty and starts with a ['.'].
 
     {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on [".ssh/."]. {{!normalize}Normalizing} the
@@ -345,7 +335,7 @@ val of_string : string -> t option
 (** [of_string s] is the string [s] as a path. [None] is returned if
     {ul
     {- [s] or the path following the {{!split_volume}volume} is empty ([""]),
-       expect on Windows UNC paths, see below.}
+       except on Windows UNC paths, see below.}
     {- [s] has null byte (['\x00']).}
     {- On Windows, [s] is an invalid UNC path (e.g. ["\\\\"] or ["\\\\a"])}}
     The following transformations are performed on the string:
@@ -373,15 +363,22 @@ val dump : Format.formatter -> t -> unit
     character.  If there is no such occurence in the segment, the
     extension is empty.  With these definitions, ["."], [".."],
     ["..."] and dot files like [".ocamlinit"] or ["..ocamlinit"] have
-    no extension, but [".emacs.d"] and ["..emacs.d"] do have one. *)
+    no extension, but [".emacs.d"] and ["..emacs.d"] do have one.
+
+    {b Warning.} The following functions act on paths whose
+    {{!basename}basename} is non empty and do nothing otherwise.
+    {{!normalize}Normalizing} [p] before using the functions ensures
+    that the functions do nothing iff [p] cannot be named (like in
+    ["."], ["../../"], ["/"], etc.). *)
 
 type ext = string
 (** The type for file extensions. *)
 
 val get_ext : ?multi:bool -> t -> ext
-(** [get_ext p] is [p]'s last non-empty segment file extension or the empty
-    string if there is no extension. If [multi] is [true] (defaults to
-    [false]), returns the multiple file extension. {{!ex_get_ext}Examples}. *)
+(** [get_ext p] is [p]'s {{!basename}basename} file extension or the
+    empty string if there is no extension. If [multi] is [true]
+    (defaults to [false]), returns the multiple file
+    extension. {{!ex_get_ext}Examples}. *)
 
 val has_ext : ext -> t -> bool
 (** [has_ext e p] is [true] iff [ext p = e || ext ~multi:true p = e].
@@ -389,9 +386,9 @@ val has_ext : ext -> t -> bool
     the test. {{!ex_has_ext}Examples}. *)
 
 val ext_exists : ?multi:bool -> t -> bool
-(** [ext_exists ~multi p] is [true] iff [p]'s last segment has an
-    extension.  If [multi] is [true] (default to [false]) returns
-    [true] iff [p] has {e more than one} extension.
+(** [ext_exists ~multi p] is [true] iff [p]'s last non-empty
+    segment has an extension.  If [multi] is [true] (default to [false])
+    returns [true] iff [p] has {e more than one} extension.
     {{!ex_ext_exists}Examples}. *)
 
 val add_ext : ext -> t -> t
@@ -556,22 +553,21 @@ end
        a path}. This usually means that we don't care whether the path
        is a {{!is_file_path}file path} (e.g. ["a"]) or a
        {{!is_dir_path}directory path} (e.g. ["a/"]).}
-    {- Windows accepts both ['\\'] and ['/'] as directory
-       separator.  However [Fpath] on Windows converts ['/'] to ['\\'] on
-       the fly. Therefore you should either use ['/'] for defining
+    {- Windows accepts both ['\\'] and ['/'] as directory separator.
+       However [Fpath] on Windows converts ['/'] to ['\\'] on the
+       fly. Therefore you should either use ['/'] for defining
        constant paths you inject with {!v} or better, construct them
-       directly with {!(/)}. {!to_string} will convert these paths
-       to strings using the platform's specific directory
-       separator {!dir_sep}.}
+       directly with {!(/)}. {!to_string} then converts paths to strings
+       using the platform's specific directory separator {!dir_sep}.}
     {- Avoid platform specific {{!split_volume}volumes} or hard-coding file
        hierarchy conventions in your constants.}
     {- Do not assume there is a single root path and that it is
-       [/]. On Windows each {{!split_volume}volume} can have a root path.
-       Use {!is_root} to detect root paths.}
+       ["/"]. On Windows each {{!split_volume}volume} can have a root path.
+       Use {!is_root} on {{!normalize}normalized} paths to detect roots.}
     {- Do not use {!to_string} to construct URIs, {!to_string} uses
        {!dir_sep} to separate segments, on Windows this is ['\\'] which
-       is not what URIs expect. Access the path segments directly
-       with {!segs}, note that you will need to percent encode these.}}
+       is not what URIs expect. Access path segments directly
+       with {!segs}; note that you will need to percent encode these.}}
 
     {1:ex Examples}
 
@@ -926,22 +922,27 @@ end
 
     {2:ex_get_ext {!get_ext}}
     {ul
+    {- [get_ext (v "/") = ""]}
     {- [get_ext (v "/a/b") = ""]}
-    {- [get_ext (v "a/.") = ""]}
-    {- [get_ext (v "a/..") = ""]}
+    {- [get_ext (v "a.mli/.") = ""]}
+    {- [get_ext (v "a.mli/..") = ""]}
     {- [get_ext (v "a/.ocamlinit") = ""]}
+    {- [get_ext (v "a/.ocamlinit/") = ""]}
     {- [get_ext (v "/a/b.") = "."]}
     {- [get_ext (v "/a/b.mli") = ".mli"]}
     {- [get_ext (v "a.tar.gz") = ".gz"]}
     {- [get_ext (v "a/.emacs.d") = ".d"]}
+    {- [get_ext (v "a/.emacs.d/") = ".d"]}
     {- [get_ext ~multi:true (v "/a/b.mli") = ".mli"]}
     {- [get_ext ~multi:true (v "a.tar.gz") = ".tar.gz"]}
-    {- [get_ext ~multi:true (v "a/.emacs.d") = ".d"]}}
+    {- [get_ext ~multi:true (v "a/.emacs.d") = ".d"]}
+    {- [get_ext ~multi:true (v "a/.emacs.d/") = ".d/"]}}
 
     {2:ex_has_ext {!has_ext}}
     {ul
     {- [has_ext ".mli" (v "a/b.mli")  = true]}
     {- [has_ext "mli" (v "a/b.mli")  = true]}
+    {- [has_ext "mli" (v "a/b.mli/")  = true]}
     {- [has_ext "mli" (v "a/bmli")  = false]}
     {- [has_ext ".tar.gz" (v "a/f.tar.gz") = true]}
     {- [has_ext "tar.gz" (v "a/f.tar.gz") = true]}
@@ -953,7 +954,9 @@ end
     {- [ext_exists (v "a/f.") = true]}
     {- [ext_exists (v "a/f.gz") = true]}
     {- [ext_exists (v "a/f.tar.gz") = true]}
+    {- [ext_exists (v "a/f.tar.gz/") = true]}
     {- [ext_exists (v ".emacs.d") = true]}
+    {- [ext_exists (v ".emacs.d/") = true]}
     {- [ext_exists ~multi:true (v "a/f.gz") = false]}
     {- [ext_exists ~multi:true (v "a/f.tar.gz") = true]}
     {- [ext_exists ~multi:true (v ".emacs.d") = false]}}

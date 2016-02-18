@@ -2,9 +2,9 @@ Fpath — File system paths for OCaml
 -------------------------------------------------------------------------------
 v%%VERSION%%
 
-Fpath is an OCaml module for handling file system paths on POSIX and
-Windows operating systems. Fpath processes paths without accessing the
-file system and is independent from any system library.
+Fpath is an OCaml module for handling file system paths with POSIX or
+Windows conventions. Fpath processes paths without accessing the file
+system and is independent from any system library.
 
 Fpath depends on [Astring][astring] and is distributed under the ISC
 license.

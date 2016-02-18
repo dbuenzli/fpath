@@ -507,6 +507,7 @@ let normalize = test "Fpath.normalize" @@ fun () ->
   eqp (Fpath.normalize @@ v "a/..b") (v "a/..b");
   eqp (Fpath.normalize @@ v "./a") (v "a");
   eqp (Fpath.normalize @@ v "../a") (v "../a");
+  eqp (Fpath.normalize @@ v "a/..") (v "./");
   eqp (Fpath.normalize @@ v "../../a") (v "../../a");
   eqp (Fpath.normalize @@ v "./a/..") (v "./");
   eqp (Fpath.normalize @@ v "/a/b/./..") (v "/a/");
@@ -729,6 +730,12 @@ let relativize = test "Fpath.relativize" @@ fun () ->
   relativize (v "../a") (v "../../b") (Some (v "../../b"));
   relativize (v "a") (v "../../b") (Some (v "../../../b"));
   relativize (v "a/c") (v "../../b") (Some (v "../../../../b"));
+  if windows then begin
+    relativize (v "C:a\\c") (v "C:..\\..\\b") (Some (v "..\\..\\..\\..\\b"));
+    relativize (v "C:a\\c") (v "..\\..\\b") None;
+    relativize (v "\\\\?\\UNC\\server\\share\\a\\b\\c")
+      (v "\\\\?\\UNC\\server\\share\\d\\e\\f") (Some (v "../../../d/e/f"));
+  end;
   ()
 
 let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->
@@ -828,6 +835,7 @@ let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
   ()
 
 let get_ext = test "Fpath.get_ext" @@ fun () ->
+  eq_str (Fpath.get_ext @@ v "/") "";
   eq_str (Fpath.get_ext @@ v ".") "";
   eq_str (Fpath.get_ext @@ v "..") "";
   eq_str (Fpath.get_ext @@ v "...") "";
@@ -839,22 +847,31 @@ let get_ext = test "Fpath.get_ext" @@ fun () ->
   eq_str (Fpath.get_ext @@ v ".a...") ".";
   eq_str (Fpath.get_ext @@ v ".a....") ".";
   eq_str (Fpath.get_ext @@ v "a/...") "";
-  eq_str (Fpath.get_ext @@ v "a/.") "";
-  eq_str (Fpath.get_ext @@ v "a/..") "";
+  eq_str (Fpath.get_ext @@ v "a.mli/.") "";
+  eq_str (Fpath.get_ext @@ v "a.mli/..") "";
   eq_str (Fpath.get_ext @@ v "a/.a") "";
   eq_str (Fpath.get_ext @@ v "a/..b") "";
   eq_str (Fpath.get_ext @@ v "a/..b.a") ".a";
+  eq_str (Fpath.get_ext @@ v "a/..b.a/") ".a";
   eq_str (Fpath.get_ext @@ v "a/..b..ac") ".ac";
+  eq_str (Fpath.get_ext @@ v "a/..b..ac/") ".ac";
   eq_str (Fpath.get_ext @@ v "/a/b") "";
   eq_str (Fpath.get_ext @@ v "/a/b.") ".";
+  eq_str (Fpath.get_ext @@ v "/a/b./") ".";
   eq_str (Fpath.get_ext @@ v "a/.ocamlinit") "";
+  eq_str (Fpath.get_ext @@ v "a/.ocamlinit/") "";
   eq_str (Fpath.get_ext @@ v "a/.emacs.d") ".d";
+  eq_str (Fpath.get_ext @@ v "a/.emacs.d/") ".d";
   eq_str (Fpath.get_ext @@ v "/a/b.mli") ".mli";
+  eq_str (Fpath.get_ext @@ v "/a/b.mli/") ".mli";
   eq_str (Fpath.get_ext @@ v "a.tar.gz") ".gz";
+  eq_str (Fpath.get_ext @@ v "a.tar.gz/") ".gz";
   eq_str (Fpath.get_ext @@ v "./a.") ".";
+  eq_str (Fpath.get_ext @@ v "./a./") ".";
   eq_str (Fpath.get_ext @@ v "./a..") ".";
+  eq_str (Fpath.get_ext @@ v "./a../") ".";
   eq_str (Fpath.get_ext @@ v "./.a.") ".";
-  eq_str (Fpath.get_ext @@ v "./.a..") ".";
+  eq_str (Fpath.get_ext @@ v "./.a../") ".";
   eq_str (Fpath.get_ext ~multi:true @@ v ".") "";
   eq_str (Fpath.get_ext ~multi:true @@ v "..") "";
   eq_str (Fpath.get_ext ~multi:true @@ v "...") "";
@@ -862,6 +879,7 @@ let get_ext = test "Fpath.get_ext" @@ fun () ->
   eq_str (Fpath.get_ext ~multi:true @@ v ".....") "";
   eq_str (Fpath.get_ext ~multi:true @@ v ".a") "";
   eq_str (Fpath.get_ext ~multi:true @@ v ".a.") ".";
+  eq_str (Fpath.get_ext ~multi:true @@ v ".a./") ".";
   eq_str (Fpath.get_ext ~multi:true @@ v ".a..") "..";
   eq_str (Fpath.get_ext ~multi:true @@ v ".a...") "...";
   eq_str (Fpath.get_ext ~multi:true @@ v ".a....") "....";
@@ -870,14 +888,23 @@ let get_ext = test "Fpath.get_ext" @@ fun () ->
   eq_str (Fpath.get_ext ~multi:true @@ v "a/..") "";
   eq_str (Fpath.get_ext ~multi:true @@ v "a/..b") "";
   eq_str (Fpath.get_ext ~multi:true @@ v "a/..b.a") ".a";
+  eq_str (Fpath.get_ext ~multi:true @@ v "a/..b.a/") ".a";
   eq_str (Fpath.get_ext ~multi:true @@ v "a/..b..ac") "..ac";
+  eq_str (Fpath.get_ext ~multi:true @@ v "a/..b..ac/") "..ac";
   eq_str (Fpath.get_ext ~multi:true @@ v "a/.emacs.d") ".d";
+  eq_str (Fpath.get_ext ~multi:true @@ v "a/.emacs.d/") ".d";
   eq_str (Fpath.get_ext ~multi:true @@ v "/a/b.mli") ".mli";
+  eq_str (Fpath.get_ext ~multi:true @@ v "/a/b.mli/") ".mli";
   eq_str (Fpath.get_ext ~multi:true @@ v "a.tar.gz") ".tar.gz";
+  eq_str (Fpath.get_ext ~multi:true @@ v "a.tar.gz/") ".tar.gz";
   eq_str (Fpath.get_ext ~multi:true @@ v "./a.") ".";
+  eq_str (Fpath.get_ext ~multi:true @@ v "./a./") ".";
   eq_str (Fpath.get_ext ~multi:true @@ v "./a..") "..";
+  eq_str (Fpath.get_ext ~multi:true @@ v "./a../") "..";
   eq_str (Fpath.get_ext ~multi:true @@ v "./.a.") ".";
+  eq_str (Fpath.get_ext ~multi:true @@ v "./.a./") ".";
   eq_str (Fpath.get_ext ~multi:true @@ v "./.a..") "..";
+  eq_str (Fpath.get_ext ~multi:true @@ v "./.a../") "..";
   ()
 
 let has_ext = test "Fpath.has_ext" @@ fun () ->
@@ -905,16 +932,19 @@ let has_ext = test "Fpath.has_ext" @@ fun () ->
   eq_bool (Fpath.has_ext "..." @@ v "....") false;
   eq_bool (Fpath.has_ext "..." @@ v ".a...") true;
   eq_bool (Fpath.has_ext ".mli" @@ v "a/b.mli") true;
+  eq_bool (Fpath.has_ext ".mli" @@ v "a/b.mli/") true;
   eq_bool (Fpath.has_ext "mli" @@ v "a/b.mli") true;
   eq_bool (Fpath.has_ext "mli" @@ v "a/bmli") false;
   eq_bool (Fpath.has_ext "mli" @@ v "a/.mli") false;
   eq_bool (Fpath.has_ext ".tar.gz" @@ v "a/f.tar.gz") true;
   eq_bool (Fpath.has_ext "tar.gz" @@ v "a/f.tar.gz") true;
+  eq_bool (Fpath.has_ext "tar.gz" @@ v "a/f.tar.gz/") true;
   eq_bool (Fpath.has_ext "tar.gz" @@ v "a/ftar.gz") false;
   eq_bool (Fpath.has_ext "tar.gz" @@ v "a/tar.gz") false;
   eq_bool (Fpath.has_ext "tar.gz" @@ v "a/.tar.gz") false;
   eq_bool (Fpath.has_ext ".tar" @@ v "a/f.tar.gz") false;
   eq_bool (Fpath.has_ext ".ocamlinit" @@ v ".ocamlinit") false;
+  eq_bool (Fpath.has_ext ".ocamlinit/" @@ v ".ocamlinit") false;
   eq_bool (Fpath.has_ext ".ocamlinit" @@ v "..ocamlinit") false;
   eq_bool (Fpath.has_ext "..ocamlinit" @@ v "...ocamlinit") false;
   eq_bool (Fpath.has_ext "..ocamlinit" @@ v ".a..ocamlinit") true;

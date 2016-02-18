@@ -62,7 +62,7 @@ let of_string = test "Fpath.{v,of_string}" @@ fun () ->
       (some "\\\\?\\UNC\\server\\share\\a");
     eq (Fpath.of_string "\\\\.") None;
     eq (Fpath.of_string "\\\\.\\") None;
-    eq (Fpath.of_string "\\\\.\\device") (some "\\\\.\\device\\") (* root add *);
+    eq (Fpath.of_string "\\\\.\\device") (some "\\\\.\\device\\")(* root add *);
     eq (Fpath.of_string "\\\\.\\device\\") (some "\\\\.\\device\\");
     eq (Fpath.of_string "\\\\.\\device\\a") (some "\\\\.\\device\\a");
   end;
@@ -655,28 +655,6 @@ let rem_prefix = test "Fpath.rem_prefix" @@ fun () ->
   end;
   ()
 
-
-let rooted = test "Fpath.rooted" @@ fun () ->
-(*
-  let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
-  eq (Fpath.rooted (v "/a/b") (v "c")) (Some (v "/a/b/c"));
-  eq (Fpath.rooted (v "/a/b") (v "/a/b/c")) (Some (v "/a/b/c"));
-  eq (Fpath.rooted (v "/a/b") (v "/a/b/c/")) (Some (v "/a/b/c/"));
-  eq (Fpath.rooted (v "/a/b") (v "/a/b/c/.")) (Some (v "/a/b/c/"));
-  eq (Fpath.rooted (v "/a/b") (v "../c")) None;
-  eq (Fpath.rooted (v "a/b") (v "c")) (Some (v "a/b/c"));
-  eq (Fpath.rooted (v "a/b") (v "/c")) None;
-  eq (Fpath.rooted (v "a/b") (v "../c")) None;
-  eq (Fpath.rooted (v "a/b") (v "c/..")) (Some (v "a/b/"));
-  eq (Fpath.rooted (v "a/b") (v "c/../..")) None;
-  eq (Fpath.rooted (v "a/b") (v "c/d/../..")) (Some (v "a/b/"));
-  eq (Fpath.rooted (v "../../a") (v "a")) (Some (v "../../a/a"));
-  eq (Fpath.rooted (v "../../a") (v "a/..")) (Some (v "../../a/"));
-  eq (Fpath.rooted (v "../../a") (v "../../b")) None;
-  eq (Fpath.rooted (v "../../a") (v "../../a")) (None);
-*)
-  ()
-
 let relativize = test "Fpath.relativize" @@ fun () ->
   let eq_opt = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
   let relativize root p result = match Fpath.relativize root p with
@@ -725,6 +703,7 @@ let relativize = test "Fpath.relativize" @@ fun () ->
   relativize (v "a/b/c/") (v "a/b/../../../") (Some (v "../../../../"));
   relativize (v "a/b/c/") (v "a/b/../../../a") (Some (v "../../../../a"));
   relativize (v "a/b") (v "a/b/") (Some (v "./"));
+  relativize (v "../") (v "./") None;
   relativize (v "../a") (v "b") None;
   relativize (v "../../a") (v "../b") None;
   relativize (v "../a") (v "../../b") (Some (v "../../b"));
@@ -736,6 +715,25 @@ let relativize = test "Fpath.relativize" @@ fun () ->
     relativize (v "\\\\?\\UNC\\server\\share\\a\\b\\c")
       (v "\\\\?\\UNC\\server\\share\\d\\e\\f") (Some (v "../../../d/e/f"));
   end;
+  ()
+
+let is_rooted = test "Fpath.is_rooted" @@ fun () ->
+  eq_bool (Fpath.is_rooted ~root:(v "a/b") (v "a/b")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "a/b") (v "a/b/")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "a/b/") (v "a/b")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "a/b/") (v "a/b/")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "./") (v "a")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "./") (v "a/")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "./") (v "a/../")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "./") (v "..")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "../") (v "./")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "../") (v "a")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "../") (v "../a")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "../a") (v "./")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "/a") (v "/a/..")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "/a") (v "/a/../a/")) true;
+  eq_bool (Fpath.is_rooted ~root:(v "/a") (v "/a/../a")) false;
+  eq_bool (Fpath.is_rooted ~root:(v "/") (v "/..")) true;
   ()
 
 let is_abs_rel = test "Fpath.is_abs_rel" @@ fun () ->
@@ -1130,8 +1128,8 @@ let suite = suite "Fpath module"
       is_prefix;
       find_prefix;
       rem_prefix;
-      rooted;
       relativize;
+      is_rooted;
       is_abs_rel;
       is_root;
       is_current_dir;

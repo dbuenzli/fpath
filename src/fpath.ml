@@ -481,11 +481,6 @@ let rem_prefix prefix p = match is_prefix prefix p with
 
 (* Roots and relativization *)
 
-let rooted ~root p =
-  let nroot = normalize root in
-  let prooted = normalize (append root p) in
-  if is_prefix nroot prooted then Some prooted else None
-
 let _relativize ~root p =
   let root = (* root is always interpreted as a directory *)
     let root = normalize root in
@@ -547,6 +542,10 @@ let relativize_posix ~root p = _relativize ~root p
 
 let relativize = if windows then relativize_windows else relativize_posix
 
+let is_rooted ~root p = match relativize ~root p with
+| None -> false
+| Some r -> not (String.equal dotdot r || String.is_prefix dotdot_dir r)
+
 (* Predicates and comparison *)
 
 let is_rel_posix p = p.[0] <> dir_sep_char
@@ -559,8 +558,8 @@ let is_abs p = not (is_rel p)
 let is_root = if windows then Windows.is_root else Posix.is_root
 
 let is_current_dir_posix ?(prefix = false) p = match prefix with
-| false ->  String.equal p dot || String.equal p dot_dir
-| true -> String.equal p dot || String.is_prefix dot_dir p
+| false ->  String.equal dot p || String.equal dot_dir p
+| true -> String.equal dot p || String.is_prefix dot_dir p
 
 let is_current_dir_windows ?(prefix = false) p =
   if Windows.is_unc_path p then false else
@@ -574,8 +573,8 @@ let is_current_dir =
   if windows then is_current_dir_windows else is_current_dir_posix
 
 let is_parent_dir_posix ?(prefix = false) p = match prefix with
-| false -> String.equal p dotdot || String.equal p dotdot_dir
-| true -> String.equal p dotdot || String.is_prefix dotdot_dir p
+| false -> String.equal dotdot p || String.equal dotdot_dir p
+| true -> String.equal dotdot p || String.is_prefix dotdot_dir p
 
 let is_parent_dir_windows ?(prefix = false) p =
   if Windows.is_unc_path p then false else

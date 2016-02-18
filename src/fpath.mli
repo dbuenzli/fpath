@@ -267,7 +267,13 @@ val relativize : root:t -> t -> t option
        syntactically when converted to a string.}
     {- [None] otherwise}}
 
-    {{!ex_relativize}Examples.} *)
+    {{!ex_relativize}Examples}. *)
+
+val is_rooted : root:t -> t -> bool
+(** [is_rooted root p] is [true] iff the path [p] is the {e directory}
+    [root] or contained in [root] and that [p] can be {{!relativize}
+    relativized} w.r.t. [root].
+    {{!ex_is_rooted}Examples}. *)
 
 (** {1:predicates Predicates and comparison} *)
 
@@ -837,41 +843,6 @@ end
     {- [rem_prefix (v "a/b/") (v "a/b/c/")] is [Some (v "c/")]}
     {- [rem_prefix (v "C:\\a") (v "C:\\a\\b")] is [Some (v "b")] (Windows)}}
 
-    {2:ex_is_rooted {!is_rooted}}
-    {ul
-    {- [is_rooted ~root:(v "a/b") (v "a/b") = true]}
-    {- [is_rooted ~root:(v "a/b/") (v "a/b") = true]}
-    {- [is_rooted ~root:(v "a/b") (v "a/b/") = true]}
-    {- [is_rooted ~root:(v "a/b/") (v "a/b/") = true]}
-    {- [is_rooted ~root:(v "./") (v "a") = true]}
-    {- [is_rooted ~root:(v "./") (v "a/") = true]}
-    {- [is_rooted ~root:(v "./") (v "a/../") = true]}
-    {- [is_rooted ~root:(v "./") (v "../") = false]}
-    {- [is_rooted ~root:(v "../") (v "./") = true]}
-    {- [is_rooted ~root:(v "../a") (v "./") = false]}
-    {- [is_rooted (v "/a/b") (v "/a/b/c")] is [Some (v "/a/b/c")]}
-    {- [is_rooted (v "/a/b") (v "/a/b/c/")] is [Some (v "/a/b/c")]}
-    {- [is_rooted (v "/a/b") (v "/a/b/c/.")] is [Some (v "/a/b/c")]}
-    {- [is_rooted (v "/a/b") (v "../c")] is [None]}
-    {- [is_rooted (v "a/b") (v "c")] is [Some (v "a/b/c")]}
-    {- [is_rooted (v "a/b") (v "/c")] is [None]}
-    {- [is_rooted (v "a/b") (v "../c")] is [None]}
-    {- [is_rooted (v "a/b") (v "c/..")] is [Some (v "a/b")]}
-    {- [is_rooted (v "a/b") (v "c/../..")] is [None]}}
-
-    {2:ex_rooted {!rooted}}
-    {ul
-    {- [rooted (v "/a/b") (v "c")] is [Some (v "/a/b/c")]}
-    {- [rooted (v "/a/b") (v "/a/b/c")] is [Some (v "/a/b/c")]}
-    {- [rooted (v "/a/b") (v "/a/b/c/")] is [Some (v "/a/b/c")]}
-    {- [rooted (v "/a/b") (v "/a/b/c/.")] is [Some (v "/a/b/c")]}
-    {- [rooted (v "/a/b") (v "../c")] is [None]}
-    {- [rooted (v "a/b") (v "c")] is [Some (v "a/b/c")]}
-    {- [rooted (v "a/b") (v "/c")] is [None]}
-    {- [rooted (v "a/b") (v "../c")] is [None]}
-    {- [rooted (v "a/b") (v "c/..")] is [Some (v "a/b")]}
-    {- [rooted (v "a/b") (v "c/../..")] is [None]}}
-
     {2:ex_relativize {!relativize}}
     {ul
     {- [relativize ~root:(v "/a/b") (v "c")] is [None]}
@@ -887,11 +858,31 @@ end
     {- [relativize ~root:(v "a/b") (v "c")] is [Some (v "../../c")]}
     {- [relativize ~root:(v "a/b") (v "c/")] is [Some (v "../../c/")]}
     {- [relativize ~root:(v "a/b") (v "a/b/c")] is [Some (v "c")]}
-    {- [relativize (v "a/b") (v "a/b")] is [Some (v ".")]}
-    {- [relativize (v "a/b") (v "a/b/")] is [Some (v ".")]}
-    {- [relativize (v "../a") (v "b")] is [None]}
-    {- [relativize (v "../../a") (v "../b")] is [None]}
+    {- [relativize ~root:(v "a/b") (v "a/b")] is [Some (v ".")]}
+    {- [relativize ~root:(v "a/b") (v "a/b/")] is [Some (v ".")]}
+    {- [relativize ~root:(v "../") (v "./")] is [None]}
+    {- [relativize ~root:(v "../a") (v "b")] is [None]}
+    {- [relativize ~root:(v "../../a") (v "../b")] is [None]}
     {- [relativize (v "../a") (v "../../b")] is [(Some "../../b")]}}
+
+    {2:ex_is_rooted {!is_rooted}}
+    {ul
+    {- [is_rooted ~root:(v "a/b") (v "a/b") = false]}
+    {- [is_rooted ~root:(v "a/b") (v "a/b/") = true]}
+    {- [is_rooted ~root:(v "a/b/") (v "a/b") = false]}
+    {- [is_rooted ~root:(v "a/b/") (v "a/b/") = true]}
+    {- [is_rooted ~root:(v "./") (v "a") = true]}
+    {- [is_rooted ~root:(v "./") (v "a/") = true]}
+    {- [is_rooted ~root:(v "./") (v "a/../") = true]}
+    {- [is_rooted ~root:(v "./") (v "..") = false]}
+    {- [is_rooted ~root:(v "../") (v "./") = false]}
+    {- [is_rooted ~root:(v "../") (v "a") = false]}
+    {- [is_rooted ~root:(v "../") (v "../") = true]}
+    {- [is_rooted ~root:(v "../") (v "../a") = true]}
+    {- [is_rooted ~root:(v "../a") (v "./") = false]}
+    {- [is_rooted ~root:(v "/a") (v "/a/..") = true]}
+    {- [is_rooted ~root:(v "/a") (v "/a/../") = true]}
+    {- [is_rooted ~root:(v "/a") (v "/..") = true]}}
 
     {2:ex_is_root {!is_root}}
     {ul
@@ -906,20 +897,6 @@ end
     {- [is_root (v "C:\\") = true] (Windows)}
     {- [is_root (v "C:a") = false] (Windows)}
     {- [is_root (v "C:\\a") = false] (Windows)}}
-
-    {2:ex_is_current_dir {!is_current_dir}}
-    {ul
-    {- [is_current_dir (v ".") = true]}
-    {- [is_current_dir (v "./") = true]}
-    {- [is_current_dir (v "./a/..") = false]}
-    {- [is_current_dir (v "./.") = false]}}
-
-    {2:ex_is_dotfile {!is_dotfile}}
-    {ul
-    {- [is_dotfile (v ".ssh") = true]}
-    {- [is_dotfile (v ".ssh/") = true]}
-    {- [is_dotfile (v ".ssh/.") = false]}
-    {- [is_dotfile (v ".ssh/a") = false]}}
 
     {2:ex_get_ext {!get_ext}}
     {ul

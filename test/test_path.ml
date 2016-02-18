@@ -795,17 +795,47 @@ let is_root = test "Fpath.is_root" @@ fun () ->
 
 let is_current_dir = test "Fpath.is_current_dir" @@ fun () ->
   eq_bool (Fpath.is_current_dir (v ".")) true;
+  eq_bool (Fpath.is_current_dir ~prefix:true (v ".")) true;
   eq_bool (Fpath.is_current_dir (v "./")) true;
+  eq_bool (Fpath.is_current_dir ~prefix:true (v "./")) true;
   eq_bool (Fpath.is_current_dir (v "./a/..")) false;
+  eq_bool (Fpath.is_current_dir ~prefix:true (v "./a/..")) true;
   eq_bool (Fpath.is_current_dir (v "/.")) false;
   if windows then begin
     eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.")) false;
+    eq_bool (Fpath.is_current_dir ~prefix:true (v "\\\\.\\dev\\.")) false;
     eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.\\")) false;
     eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.")) false;
     eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.\\")) false;
     eq_bool (Fpath.is_current_dir (v "C:.")) true;
+    eq_bool (Fpath.is_current_dir ~prefix:true (v "C:.")) true;
     eq_bool (Fpath.is_current_dir (v "C:./")) true;
+    eq_bool (Fpath.is_current_dir ~prefix:true (v "C:./")) true;
     eq_bool (Fpath.is_current_dir (v "C:./a/..")) false;
+    eq_bool (Fpath.is_current_dir ~prefix:true (v "C:./a/..")) true;
+  end;
+  ()
+
+let is_parent_dir = test "Fpath.is_parent_dir" @@ fun () ->
+  eq_bool (Fpath.is_parent_dir (v ".")) false;
+  eq_bool (Fpath.is_parent_dir (v "./")) false;
+  eq_bool (Fpath.is_parent_dir (v "..")) true;
+  eq_bool (Fpath.is_parent_dir ~prefix:true (v "..")) true;
+  eq_bool (Fpath.is_parent_dir (v "../")) true;
+  eq_bool (Fpath.is_parent_dir ~prefix:true (v "../")) true;
+  eq_bool (Fpath.is_parent_dir (v "./a/../..")) false;
+  eq_bool (Fpath.is_parent_dir ~prefix:true (v "../a/../..")) true;
+  eq_bool (Fpath.is_parent_dir (v "../..")) false;
+  eq_bool (Fpath.is_parent_dir (v "/..")) false;
+  if windows then begin
+    eq_bool (Fpath.is_parent_dir (v "\\\\.\\dev\\.")) false;
+    eq_bool (Fpath.is_parent_dir (v "\\\\.\\dev\\.\\")) false;
+    eq_bool (Fpath.is_parent_dir (v "\\\\server\\share\\.")) false;
+    eq_bool (Fpath.is_parent_dir (v "\\\\server\\share\\.\\")) false;
+    eq_bool (Fpath.is_parent_dir (v "C:..")) true;
+    eq_bool (Fpath.is_parent_dir (v "C:../")) true;
+    eq_bool (Fpath.is_parent_dir (v "C:../a/..")) false;
+    eq_bool (Fpath.is_parent_dir ~prefix:true (v "C:../a/..")) true;
   end;
   ()
 
@@ -824,13 +854,13 @@ let is_dotfile = test "Fpath.is_dotfile" @@ fun () ->
   eq_bool (Fpath.is_dotfile (v "/a/.../")) true;
   eq_bool (Fpath.is_dotfile (v "/a/.../a")) false;
   if windows then begin
-    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.")) false;
-    eq_bool (Fpath.is_current_dir (v "\\\\.\\dev\\.\\")) false;
-    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.")) false;
-    eq_bool (Fpath.is_current_dir (v "\\\\server\\share\\.\\")) false;
-    eq_bool (Fpath.is_current_dir (v "C:.")) true;
-    eq_bool (Fpath.is_current_dir (v "C:./")) true;
-    eq_bool (Fpath.is_current_dir (v "C:./a/..")) false;
+    eq_bool (Fpath.is_dotfile (v "\\\\.\\dev\\.")) false;
+    eq_bool (Fpath.is_dotfile (v "\\\\.\\dev\\.\\")) false;
+    eq_bool (Fpath.is_dotfile (v "\\\\server\\share\\.")) false;
+    eq_bool (Fpath.is_dotfile (v "\\\\server\\share\\.\\")) false;
+    eq_bool (Fpath.is_dotfile (v "C:.")) true;
+    eq_bool (Fpath.is_dotfile (v "C:./")) true;
+    eq_bool (Fpath.is_dotfile (v "C:./a/..")) false;
   end;
   ()
 
@@ -1100,6 +1130,7 @@ let suite = suite "Fpath module"
       is_abs_rel;
       is_root;
       is_current_dir;
+      is_parent_dir;
       is_dotfile;
       get_ext;
       has_ext;

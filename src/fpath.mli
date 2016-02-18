@@ -288,23 +288,25 @@ val is_root : t -> bool
     return [false] on ["/a/.."] or ["/.."]. {{!normalize}Normalizing}
     the path before testing avoids this problem. *)
 
-val is_current_dir : t -> bool
+val is_current_dir : ?prefix:bool -> t -> bool
 (** [is_current_dir p] is true iff [p] is the current relative directory,
-    i.e. either ["."] or ["./"]. {{!ex_is_current_dir}Examples}.
+    i.e. either ["."] or ["./"]. If [prefix] is [true] (defaults to [false])
+    simply checks that [p] is {{!is_rel}relative} and its first segment
+    is ["."].
 
     {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on ["./a/.."] or ["./."]. {{!normalize}Normalizing} the
     path before testing avoids this problem. *)
 
-(*
-val is_parent_dir : t -> bool
+val is_parent_dir : ?prefix:bool -> t -> bool
 (** [is_parent_dir p] is [true] iff [p] is the relative parent directory,
-    i.e. either [".."] or ["../"]. {{!ex_is_parent_dir}Examples}.
+    i.e. either [".."] or ["../"]. If [prefix] is [true] (defaults to [false]),
+    simply checks that [p] is {{!is_rel}relative} and its first segment
+    is [".."].
 
     {b Warning.} By definition this is a syntactic test. For example it will
     return [false] on ["./a/../.."] or ["./.."]. {{!normalize}Normalizing} the
     path before testing avoids this problem. *)
-*)
 
 val is_dotfile : t -> bool
 (** [is_dotfile p] is [true] iff [p]'s {{!basename}basename} is non

@@ -679,9 +679,9 @@ type path = t
 module Set = struct
   include Set.Make (String)
 
-  let pp ?(sep = Format.pp_print_cut) pp_elt ppf ps =
+  let pp ?sep:(pp_sep = Format.pp_print_cut) pp_elt ppf ps =
     let pp_elt elt is_first =
-      if is_first then () else Format.fprintf ppf "@ ";
+      if is_first then () else pp_sep ppf ();
       Format.fprintf ppf "%a" pp_elt elt; false
     in
     ignore (fold pp_elt ps true)

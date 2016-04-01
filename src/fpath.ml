@@ -15,9 +15,8 @@ let string_unsafe_get = String.unsafe_get
 
 (* Errors *)
 
-let err_invalid_path s = strf "invalid path: %a" String.dump s
-let err_invalid_seg s = strf "invalid segment: %a" String.dump s
-let err_invalid_ext s = strf "invalid extension: %a" String.dump s
+let err_invalid_seg s = strf "%a: invalid segment" String.dump s
+let err_invalid_ext s = strf "%a: invalid extension" String.dump s
 
 (* A few useful constants *)
 
@@ -186,14 +185,16 @@ let segs_to_path segs = String.concat ~sep:dir_sep segs
 
 type t = string (* N.B. a path is never "" or something is wrooong. *)
 
+let err s = Result.Error (`Msg (strf "%a: invalid path" String.dump s))
+
 let validate_and_collapse_seps p =
   (* collapse non-initial sequences of [dir_sep] to a single one and checks
      no null byte *)
   let max_idx = String.length p - 1 in
   let rec with_buf b last_sep k i = (* k is the write index in b *)
-    if i > max_idx then Some (Bytes.sub_string b 0 k) else
+    if i > max_idx then Result.Ok (Bytes.sub_string b 0 k) else
     let c = string_unsafe_get p i in
-    if c = '\x00' then None else
+    if c = '\x00' then err p else
     if c <> dir_sep_char
     then (bytes_unsafe_set b k c; with_buf b false (k + 1) (i + 1)) else
     if not last_sep
@@ -201,9 +202,9 @@ let validate_and_collapse_seps p =
     with_buf b true k (i + 1)
   in
   let rec try_no_alloc last_sep i =
-    if i > max_idx then Some p else
+    if i > max_idx then Result.Ok p else
     let c = string_unsafe_get p i in
-    if c = '\x00' then None else
+    if c = '\x00' then err p else
     if c <> dir_sep_char then try_no_alloc false (i + 1) else
     if not last_sep then try_no_alloc true (i + 1) else
     let b = Bytes.of_string p in (* copy and overwrite starting from i *)
@@ -214,24 +215,27 @@ let validate_and_collapse_seps p =
   in
   try_no_alloc false start
 
-let of_string_windows p =
-  if p = "" then None else
-  let p = String.map (fun c -> if c = '/' then '\\' else c) p in
+let of_string_windows s =
+  if s = "" then err s else
+  let p = String.map (fun c -> if c = '/' then '\\' else c) s in
   match validate_and_collapse_seps p with
-  | None -> None
-  | Some p as some ->
-      if Windows.is_unc_path p then Windows.parse_unc p else
+  | Result.Error _ as e -> e
+  | Result.Ok p as some ->
+      if Windows.is_unc_path p then
+        (match Windows.parse_unc p with None -> err s | Some p -> Result.Ok p)
+      else
       match String.find (Char.equal ':') p with
       | None -> some
-      | Some i when i = String.length p - 1 -> None (* path is empty *)
-      | Some _ -> Some p
+      | Some i when i = String.length p - 1 -> err p (* path is empty *)
+      | Some _ -> Result.Ok p
 
-let of_string_posix p = if p = "" then None else validate_and_collapse_seps p
+let of_string_posix p = if p = "" then err p else validate_and_collapse_seps p
 let of_string = if windows then of_string_windows else of_string_posix
 
 let v s = match of_string s with
-| None -> invalid_arg (err_invalid_path s)
-| Some p -> p
+| Result.Ok p -> p
+| Result.Error (`Msg m) -> invalid_arg m
+
 
 let add_seg p seg =
   if not (is_seg seg) then invalid_arg (err_invalid_seg seg);

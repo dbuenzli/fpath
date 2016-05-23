@@ -343,7 +343,7 @@ val to_string : t -> string
     be safely converted back with {!v}. *)
 
 val of_string : string -> (t, [`Msg of string]) Result.result
-(** [of_string s] is the string [s] as a path. [None] is returned if
+(** [of_string s] is the string [s] as a path. [Result.Error] is returned if
     {ul
     {- [s] or the path following the {{!split_volume}volume} is empty ([""]),
        except on Windows UNC paths, see below.}
@@ -358,7 +358,7 @@ val of_string : string -> (t, [`Msg of string]) Result.result
     {- On Windows empty absolute UNC paths are completed to
        their root. For example ["\\\\server\\share"] becomes
        ["\\\\server\\share\\"],
-       but incomplete UNC volumes like ["\\\\a"] return [None].}} *)
+       but incomplete UNC volumes like ["\\\\a"] return [Result.Error].}} *)
 
 val pp : Format.formatter -> t -> unit
 (** [pp ppf p] prints path [p] on [ppf] using {!to_string}. *)

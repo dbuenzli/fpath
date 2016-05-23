@@ -208,7 +208,15 @@ val normalize : t -> t
        initial segments.}
     {- If [p] is a {{!is_dir_path}directory} it always end with
        an empty segment; this means it doesn't end with ["."] or [".."].}}
-    {{!ex_normalize}Examples}. *)
+    {{!ex_normalize}Examples}.
+
+    {b Warning.} Like file and directory path {{!filedir}functions}
+    this function does not consult the file system and is purely
+    based on the syntactic semantic of paths which can be different
+    from the one of your concrete file system attributes. For example in
+    presence of symbolic links the resulting path may not point to the same
+    entity. Use the normalization functions of your OS system library to
+    ensure correct behaviour with respect to a concrete file system. *)
 
 (** {1:prefixes Prefixes}
 

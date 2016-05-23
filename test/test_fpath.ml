@@ -5,6 +5,7 @@
   ---------------------------------------------------------------------------*)
 
 open Testing
+open Result
 
 let windows = Sys.os_type = "Win32"
 
@@ -12,59 +13,65 @@ let eqp = eq ~eq:Fpath.equal ~pp:Fpath.pp
 let v = Fpath.v
 
 let of_string = test "Fpath.{v,of_string}" @@ fun () ->
-  let eq = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
-  let some s = (Some (v s)) in
-  eq (Fpath.of_string "/\x00") None;
+  let eq r o = match r, o with
+  | Ok v, Some v' -> eqp v v'
+  | Ok v, None -> fail "Ok %a <> Error _" Fpath.pp v
+  | Error (`Msg m), Some v -> fail "Error (`Msg %s) <> Ok %a" m Fpath.pp v
+  | Error _, None -> pass ()
+  in
+  let ok s = (Some (v s)) in
+  let error = None in
+  eq (Fpath.of_string "/\x00") error;
   eq (Fpath.of_string "/") (Some (Fpath.v "/"));
   eq_bool (Fpath.equal (v "/") (v "/ ")) false;
-  eq (Fpath.of_string "//") (if windows then None else some "//");
-  eq (Fpath.of_string "/a/b/c") (some "/a/b/c");
+  eq (Fpath.of_string "//") (if windows then error else ok "//");
+  eq (Fpath.of_string "/a/b/c") (ok "/a/b/c");
   eq_bool (Fpath.equal (v "/a/b/c/") (v "/a/b/c")) false;
-  eq (Fpath.of_string "") None; (* no empty path *)
-  eq (Fpath.of_string "a///b///////c///") (some "a/b/c/"); (* seg collapse *)
-  eq (Fpath.of_string "a///b///////c") (some "a/b/c"); (* seg collapse *)
+  eq (Fpath.of_string "") error; (* no empty path *)
+  eq (Fpath.of_string "a///b///////c///") (ok "a/b/c/"); (* seg collapse *)
+  eq (Fpath.of_string "a///b///////c") (ok "a/b/c"); (* seg collapse *)
   if windows then begin
-    eq (Fpath.of_string "C:\x00") None;
-    eq (Fpath.of_string "C:") None; (* no empty path *)
-    eq (Fpath.of_string "C:\\") (some "C:\\");
-    eq (Fpath.of_string "C:rel") (some "C:rel");
-    eq (Fpath.of_string "\\\\") None;
-    eq (Fpath.of_string "\\\\server") None;
-    eq (Fpath.of_string "\\\\server\\") None;
+    eq (Fpath.of_string "C:\x00") error;
+    eq (Fpath.of_string "C:") error; (* no empty path *)
+    eq (Fpath.of_string "C:\\") (ok "C:\\");
+    eq (Fpath.of_string "C:rel") (ok "C:rel");
+    eq (Fpath.of_string "\\\\") error;
+    eq (Fpath.of_string "\\\\server") error;
+    eq (Fpath.of_string "\\\\server\\") error;
     eq (Fpath.of_string "\\\\server\\share")
-      (some "\\\\server\\share\\") (* root add *);
-    eq (Fpath.of_string "\\\\?") None;
-    eq (Fpath.of_string "\\\\?\\") None;
-    eq (Fpath.of_string "\\\\?\\a") None;
-    eq (Fpath.of_string "\\\\?\\a:") (some "\\\\?\\a:\\"); (* root add *)
-    eq (Fpath.of_string "\\\\?\\a:\\") (some "\\\\?\\a:\\");
-    eq (Fpath.of_string "\\\\?\\a:\\c") (some "\\\\?\\a:\\c");
-    eq (Fpath.of_string "\\\\?\\server\\") None;
-    eq (Fpath.of_string "\\\\?\\server\\\\") None;
+      (ok "\\\\server\\share\\") (* root add *);
+    eq (Fpath.of_string "\\\\?") error;
+    eq (Fpath.of_string "\\\\?\\") error;
+    eq (Fpath.of_string "\\\\?\\a") error;
+    eq (Fpath.of_string "\\\\?\\a:") (ok "\\\\?\\a:\\"); (* root add *)
+    eq (Fpath.of_string "\\\\?\\a:\\") (ok "\\\\?\\a:\\");
+    eq (Fpath.of_string "\\\\?\\a:\\c") (ok "\\\\?\\a:\\c");
+    eq (Fpath.of_string "\\\\?\\server\\") error;
+    eq (Fpath.of_string "\\\\?\\server\\\\") error;
     eq (Fpath.of_string "\\\\?\\server\\share")
-      (some "\\\\?\\server\\share\\"); (* root add *)
+      (ok "\\\\?\\server\\share\\"); (* root add *)
     eq (Fpath.of_string "\\\\?\\server\\\\share")
-      (some "\\\\?\\server\\share\\"); (* seg collapse and root add *)
+      (ok "\\\\?\\server\\share\\"); (* seg collapse and root add *)
     eq (Fpath.of_string "\\\\?\\server\\share\\")
-      (some "\\\\?\\server\\share\\");
+      (ok "\\\\?\\server\\share\\");
     eq (Fpath.of_string "\\\\?\\server\\share\\a")
-      (some "\\\\?\\server\\share\\a");
-    eq (Fpath.of_string "\\\\?\\UNC") None;
-    eq (Fpath.of_string "\\\\?\\UNC\\") None;
-    eq (Fpath.of_string "\\\\?\\UNC\\server") None;
-    eq (Fpath.of_string "\\\\?\\UNC\\server\\") None;
-    eq (Fpath.of_string "\\\\?\\UNC\\server\\\\") None;
+      (ok "\\\\?\\server\\share\\a");
+    eq (Fpath.of_string "\\\\?\\UNC") error;
+    eq (Fpath.of_string "\\\\?\\UNC\\") error;
+    eq (Fpath.of_string "\\\\?\\UNC\\server") error;
+    eq (Fpath.of_string "\\\\?\\UNC\\server\\") error;
+    eq (Fpath.of_string "\\\\?\\UNC\\server\\\\") error;
     eq (Fpath.of_string "\\\\?\\UNC\\server\\share")
-      (some "\\\\?\\UNC\\server\\share\\"); (* root add *)
+      (ok "\\\\?\\UNC\\server\\share\\"); (* root add *)
     eq (Fpath.of_string "\\\\?\\UNC\\server\\share\\")
-      (some "\\\\?\\UNC\\server\\share\\");
+      (ok "\\\\?\\UNC\\server\\share\\");
     eq (Fpath.of_string "\\\\?\\UNC\\server\\share\\a")
-      (some "\\\\?\\UNC\\server\\share\\a");
-    eq (Fpath.of_string "\\\\.") None;
-    eq (Fpath.of_string "\\\\.\\") None;
-    eq (Fpath.of_string "\\\\.\\device") (some "\\\\.\\device\\")(* root add *);
-    eq (Fpath.of_string "\\\\.\\device\\") (some "\\\\.\\device\\");
-    eq (Fpath.of_string "\\\\.\\device\\a") (some "\\\\.\\device\\a");
+      (ok "\\\\?\\UNC\\server\\share\\a");
+    eq (Fpath.of_string "\\\\.") error;
+    eq (Fpath.of_string "\\\\.\\") error;
+    eq (Fpath.of_string "\\\\.\\device") (ok "\\\\.\\device\\")(* root add *);
+    eq (Fpath.of_string "\\\\.\\device\\") (ok "\\\\.\\device\\");
+    eq (Fpath.of_string "\\\\.\\device\\a") (ok "\\\\.\\device\\a");
   end;
   ()
 

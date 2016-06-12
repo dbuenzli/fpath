@@ -17,4 +17,4 @@ depends: [
 ]
 build: [[
   "ocaml" "pkg/pkg.ml" "build"
-          "--installer" "true" ]]
+          "--pinned" "%{pinned}%" ]]

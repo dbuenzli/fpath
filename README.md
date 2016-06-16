@@ -31,18 +31,3 @@ and there is a generated version in the `doc` directory of the
 distribution.
 
 [doc]: http://erratique.ch/software/fpath/doc/
-
-
-## Sample programs
-
-If you installed Fpath with `opam` sample programs are located in
-the directory `opam config var fpath:doc`.
-
-In the distribution sample programs are located in the `test`
-directory of the distribution. They can be built with:
-
-    ocamlbuild -use-ocamlfind test/tests.otarget
-
-The resulting binaries are in `_build/test`.
-
-- `test.native` tests the library, nothing should fail.

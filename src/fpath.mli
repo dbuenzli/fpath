@@ -400,7 +400,7 @@ val get_ext : ?multi:bool -> t -> ext
     extension. {{!ex_get_ext}Examples}. *)
 
 val has_ext : ext -> t -> bool
-(** [has_ext e p] is [true] iff [ext p = e || ext ~multi:true p = e].
+(** [has_ext e p] is [true] iff [get_ext p = e || get_ext ~multi:true p = e].
     If [e] doesn't start with a ['.'] one is prefixed before making
     the test. {{!ex_has_ext}Examples}. *)
 

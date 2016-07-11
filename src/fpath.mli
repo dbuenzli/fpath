@@ -404,6 +404,10 @@ val has_ext : ext -> t -> bool
     If [e] doesn't start with a ['.'] one is prefixed before making
     the test. {{!ex_has_ext}Examples}. *)
 
+val mem_ext : ext list -> t -> bool
+(** [mem_ext exts p] is
+    [List.mem (get_ext p) exts || List.mem (get_ext ~multi true) exts]. *)
+
 val exists_ext : ?multi:bool -> t -> bool
 (** [exists_ext ~multi p] is [true] iff [p]'s {{!basename}basename}
     file extension is not empty. If [multi] is [true] (default to

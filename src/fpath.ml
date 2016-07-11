@@ -639,6 +639,8 @@ let has_ext e p =
   let dot_index = String.Sub.length ext - String.length e - 1 in
   String.Sub.get ext dot_index = ext_sep_char
 
+let mem_ext exts p = List.exists (fun ext -> has_ext ext p) exts
+
 let exists_ext ?(multi = false) p =
   let ext = sub_get_ext ~multi p in
   if multi then String.Sub.exists eq_ext_sep (String.Sub.tail ext) else

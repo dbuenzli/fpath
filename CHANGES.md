@@ -1,8 +1,9 @@
-
-
+v0.7.1 2016-07-12 Cambridge (UK)
+--------------------------------
 
 - Add `Fpath.mem_ext`.
 - Documentation fixes.
+
 
 v0.7.0 2016-05-23 La Forclaz (VS)
 ---------------------------------

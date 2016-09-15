@@ -652,7 +652,7 @@ end
     {- [is_file_path (v "/a/b/") = false]}
     {- [is_file_path (v "/a/b") = true]}
     {- [is_file_path (v "a/") = false]}
-    {- [is_file_path (v "a") = true]}©∂
+    {- [is_file_path (v "a") = true]}
     {- [is_file_path (v "a/.") = false]}
     {- [is_file_path (v "a/..") = false]}
     {- [is_file_path (v "a/..b") = true]}

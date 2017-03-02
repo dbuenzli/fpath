@@ -1,3 +1,7 @@
+
+- Document the error message of `Fpath.of_string` so that
+  client can rely and build on it.
+
 v0.7.1 2016-07-12 Cambridge (UK)
 --------------------------------
 

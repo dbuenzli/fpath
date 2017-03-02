@@ -519,10 +519,8 @@ let _relativize ~root p =
       Some (segs_to_path segs)
   in
   match segs root, segs p with
-  | ("" :: _, s :: _)
-  | (s :: _, "" :: _) when s <> "" ->
-      (* absolute/relative mismatch *)
-      None
+  | ("" :: _, s :: _) when s <> "" -> None (* absolute/relative mismatch *)
+  | (s :: _, "" :: _) when s <> "" -> None (* absolute/relative mismatch *)
   | ["."; ""], p ->
       (* p is relative and must be expressed w.r.t. "./", so it is itself. *)
       Some (segs_to_path p)

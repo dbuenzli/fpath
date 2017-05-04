@@ -1,4 +1,7 @@
+v0.7.2 2017-05-04 La Forclaz (VS)
+---------------------------------
 
+- Fix `odoc` documentation generation.
 - Document the error message of `Fpath.of_string` so that
   client can rely and build on it.
 

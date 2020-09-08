@@ -1,5 +1,5 @@
 (*---------------------------------------------------------------------------
-   Copyright (c) 2015 Daniel C. Bünzli. All rights reserved.
+   Copyright (c) 2015 The fpath programmers. All rights reserved.
    Distributed under the ISC license, see terms at the end of the file.
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
@@ -235,7 +235,6 @@ let of_string = if windows then of_string_windows else of_string_posix
 let v s = match of_string s with
 | Ok p -> p
 | Error (`Msg m) -> invalid_arg m
-
 
 let add_seg p seg =
   if not (is_seg seg) then invalid_arg (err_invalid_seg seg);
@@ -766,7 +765,7 @@ type set = Set.t
 type 'a map = 'a Map.t
 
 (*---------------------------------------------------------------------------
-   Copyright (c) 2015 Daniel C. Bünzli
+   Copyright (c) 2015 The fpath programmers
 
    Permission to use, copy, modify, and/or distribute this software for any
    purpose with or without fee is hereby granted, provided that the above

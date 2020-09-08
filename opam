@@ -1,6 +1,6 @@
 opam-version: "2.0"
 maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
-authors: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
+authors: ["The fpath programmers"]
 homepage: "https://erratique.ch/software/fpath"
 doc: "https://erratique.ch/software/fpath/doc"
 dev-repo: "git+https://erratique.ch/repos/fpath.git"

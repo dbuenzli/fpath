@@ -1,5 +1,5 @@
 (*---------------------------------------------------------------------------
-   Copyright (c) 2014 Daniel C. Bünzli. All rights reserved.
+   Copyright (c) 2014 The fpath programmers. All rights reserved.
    Distributed under the ISC license, see terms at the end of the file.
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
@@ -30,8 +30,6 @@
     {b Note.} [Fpath] processes paths without accessing the file system.
 
     {e %%VERSION%% - {{:%%PKG_HOMEPAGE%% }homepage}} *)
-
-open Astring
 
 (** {1:segs Separators and segments} *)
 
@@ -990,7 +988,7 @@ type +'a map = 'a Map.t
     {- [equal (rem_ext ~multi:true @@ v "f.tar.gz/") (v "f/")]}} *)
 
 (*---------------------------------------------------------------------------
-   Copyright (c) 2014 Daniel C. Bünzli
+   Copyright (c) 2014 The fpath programmers
 
    Permission to use, copy, modify, and/or distribute this software for any
    purpose with or without fee is hereby granted, provided that the above

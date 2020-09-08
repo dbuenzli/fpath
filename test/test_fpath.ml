@@ -5,7 +5,6 @@
   ---------------------------------------------------------------------------*)
 
 open Testing
-open Result
 
 let windows = Sys.os_type = "Win32"
 

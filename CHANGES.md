@@ -1,3 +1,9 @@
+
+
+- Require OCaml 4.03 and drop `result` compatibility package
+- Support OCaml 4.12 injectiviy annotation of Map.S (#18).
+  Thanks to Kate for the patch. 
+
 v0.7.2 2017-05-04 La Forclaz (VS)
 ---------------------------------
 

@@ -350,7 +350,7 @@ val to_string : t -> string
 (** [to_string p] is the path [p] as a string. The result can
     be safely converted back with {!v}. *)
 
-val of_string : string -> (t, [`Msg of string]) Result.result
+val of_string : string -> (t, [`Msg of string]) result
 (** [of_string s] is the string [s] as a path. The following transformations
     are performed on the string:
     {ul
@@ -361,9 +361,9 @@ val of_string : string -> (t, [`Msg of string]) Result.result
     {- On Windows empty absolute UNC paths are completed to
        their root. For example ["\\\\server\\share"] becomes
        ["\\\\server\\share\\"],
-       but incomplete UNC volumes like ["\\\\a"] return [Result.Error].}}
+       but incomplete UNC volumes like ["\\\\a"] return [Error].}}
 
-    [Result.Error (`Msg (strf "%S: invalid path" s))] is returned if
+    [Error (`Msg (strf "%S: invalid path" s))] is returned if
     {ul
     {- [s] or the path following the {{!split_volume}volume} is empty ([""]),
        except on Windows UNC paths, see above.}

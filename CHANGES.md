@@ -1,4 +1,5 @@
-
+v0.7.3 2020-09-08 Zagreb
+------------------------
 
 - Require OCaml 4.03 and drop `result` compatibility package
 - Support OCaml 4.12 injectiviy annotation of Map.S (#18).

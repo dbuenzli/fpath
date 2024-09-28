@@ -663,7 +663,7 @@ let rem_prefix = test "Fpath.rem_prefix" @@ fun () ->
 
 let relativize = test "Fpath.relativize" @@ fun () ->
   let eq_opt = eq_option ~eq:Fpath.equal ~pp:Fpath.pp in
-  let relativize root p result = match Fpath.relativize root p with
+  let relativize root p result = match Fpath.relativize ~root p with
   | None -> eq_opt None result
   | Some rel as r ->
       eq_opt r result;

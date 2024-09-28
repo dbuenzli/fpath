@@ -5,13 +5,16 @@ archive(byte) = "fpath.cma"
 archive(native) = "fpath.cmxa"
 plugin(byte) = "fpath.cma"
 plugin(native) = "fpath.cmxs"
+exists_if = "fpath.cma fpath.cmxa"
 
 package "top" (
-  description = "Fpath toplevel support"
+  directory = "top"
+  description = "The fpath.top library"
   version = "%%VERSION_NUM%%"
-  requires = "astring.top fpath"
+  requires = "fpath"
   archive(byte) = "fpath_top.cma"
   archive(native) = "fpath_top.cmxa"
   plugin(byte) = "fpath_top.cma"
   plugin(native) = "fpath_top.cmxs"
+  exists_if = "fpath_top.cma fpath_top.cmxa"
 )

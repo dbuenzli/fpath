@@ -1,4 +1,4 @@
-PKG astring result
-S src
-S test
-B _build/**
+PKG b0.kit fpath astring
+S src/**
+S test/**
+B _b0/**

@@ -37,7 +37,7 @@ let dotdot_dir_sub = String.sub dotdot_dir
 
 module Windows = struct
 
-  let is_unc_path p = String.is_prefix "\\\\" p
+  let is_unc_path p = String.is_prefix ~affix:"\\\\" p
   let has_drive p = String.exists (Char.equal ':') p
   let non_unc_path_start p = match String.find (Char.equal ':') p with
   | None -> 0
@@ -121,7 +121,7 @@ module Windows = struct
 end
 
 module Posix = struct
-  let has_volume p = String.is_prefix "//" p
+  let has_volume p = String.is_prefix ~affix:"//" p
   let is_root p = String.equal p dir_sep || String.equal p "//"
 end
 
@@ -424,7 +424,7 @@ let normalize = if windows then normalize_windows else normalize_posix
 (* Prefixes *)
 
 let is_prefix prefix p =
-  if not (String.is_prefix prefix p) then false else
+  if not (String.is_prefix ~affix:prefix p) then false else
   (* Further check the prefix is segment-based. If [prefix] ends with a
      dir_sep_char nothing more needs to be checked. If it doesn't we need
      to check that [p]'s remaining suffix is either empty or
@@ -545,7 +545,7 @@ let relativize = if windows then relativize_windows else relativize_posix
 
 let is_rooted ~root p = match relativize ~root p with
 | None -> false
-| Some r -> not (String.equal dotdot r || String.is_prefix dotdot_dir r)
+| Some r -> not (String.equal dotdot r || String.is_prefix ~affix:dotdot_dir r)
 
 (* Predicates and comparison *)
 
@@ -560,7 +560,7 @@ let is_root = if windows then Windows.is_root else Posix.is_root
 
 let is_current_dir_posix ?(prefix = false) p = match prefix with
 | false ->  String.equal dot p || String.equal dot_dir p
-| true -> String.equal dot p || String.is_prefix dot_dir p
+| true -> String.equal dot p || String.is_prefix ~affix:dot_dir p
 
 let is_current_dir_windows ?(prefix = false) p =
   if Windows.is_unc_path p then false else
@@ -575,7 +575,7 @@ let is_current_dir =
 
 let is_parent_dir_posix ?(prefix = false) p = match prefix with
 | false -> String.equal dotdot p || String.equal dotdot_dir p
-| true -> String.equal dotdot p || String.is_prefix dotdot_dir p
+| true -> String.equal dotdot p || String.is_prefix ~affix:dotdot_dir p
 
 let is_parent_dir_windows ?(prefix = false) p =
   if Windows.is_unc_path p then false else
@@ -630,7 +630,7 @@ let get_ext ?multi p = String.Sub.to_string (sub_get_ext ?multi p)
 let has_ext e p =
   let ext = sub_get_ext ~multi:true p in
   if String.Sub.is_empty ext then false else
-  if not (String.(Sub.is_suffix (sub e) ext)) then false else
+  if not (String.(Sub.is_suffix ~affix:(sub e) ext)) then false else
   if not (String.is_empty e) && e.[0] = ext_sep_char then true else
   (* Check there's a dot before the suffix [e] in [ext] *)
   let dot_index = String.Sub.length ext - String.length e - 1 in

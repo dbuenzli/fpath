@@ -23,7 +23,7 @@ let fpath_top_lib =
 
 let test_fpath =
   let srcs = [ `Dir ~/"test" ] in
-  B0_ocaml.test ~/"test/test.ml" ~srcs ~requires:[b0_std; fpath]
+  B0_ocaml.test ~/"test/test_fpath.ml" ~srcs ~requires:[b0_std; fpath]
 
 (* Packs *)
 

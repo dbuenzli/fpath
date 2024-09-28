@@ -1,7 +1,6 @@
 (*---------------------------------------------------------------------------
    Copyright (c) 2015 The fpath programmers. All rights reserved.
    SPDX-License-Identifier: ISC
-   %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
 (* {1 Value equality and pretty printing} *)

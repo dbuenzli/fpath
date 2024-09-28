@@ -1,7 +1,6 @@
 (*---------------------------------------------------------------------------
    Copyright (c) 2015 The fpath programmers. All rights reserved.
    SPDX-License-Identifier: ISC
-   %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
 let tests () = Testing.run

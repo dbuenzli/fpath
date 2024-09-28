@@ -1,7 +1,6 @@
 (*---------------------------------------------------------------------------
    Copyright (c) 2014 The fpath programmers. All rights reserved.
    SPDX-License-Identifier: ISC
-   %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
 (** File system paths, file {{!file_exts}extensions}, path {{!Set}sets}
@@ -27,9 +26,7 @@
 
     Consult a few {{!tips}important tips}.
 
-    {b Note.} [Fpath] processes paths without accessing the file system.
-
-    {e %%VERSION%% - {{:%%PKG_HOMEPAGE%% }homepage}} *)
+    {b Note.} [Fpath] processes paths without accessing the file system. *)
 
 (** {1:segs Separators and segments} *)
 

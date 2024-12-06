@@ -9,5 +9,5 @@ build:
 
 # Test the project
 .PHONY: test
-test:
+test: build
 	ocaml pkg/pkg.ml test

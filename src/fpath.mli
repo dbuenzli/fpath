@@ -862,7 +862,7 @@ type +'a map = 'a Map.t
     {- [relativize ~root:(v "/a/b") (v "/c/")] is [Some (v "../../c/")]}
     {- [relativize ~root:(v "/a/b") (v "/a/b/c")] is [Some (v "c")]}
     {- [relativize ~root:(v "/a/b") (v "/a/b/c/")] is [Some (v "c/")]}
-    {- [relativize ~root:(v "/a/b") (v "/a/b")] is [None]}
+    {- [relativize ~root:(v "/a/b") (v "/a/b")] is [Some (v "../b")]}
     {- [relativize ~root:(v "/a/b") (v "/a/b/")] is [Some (v ".")]}
     {- [relativize ~root:(v "a/b") (v "/c")] is [None].}
     {- [relativize ~root:(v "a/b") (v "c")] is [Some (v "../../c")]}

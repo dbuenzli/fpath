@@ -263,15 +263,18 @@ val rem_prefix : t -> t -> t option
 (** {1:rootrel Roots and relativization} *)
 
 val relativize : root:t -> t -> t option
-(** [relativize ~root p] is:
+(** [relativize ~root p] tries to express path [p] relative to the directory
+    [root]:
     {ul
-    {- [Some q] if there exists a {{!is_relative}relative} path [q] such
+    {- [Some q] if there exists a {{!is_rel}relative} path [q] such
        that [root // q] and [p] represent the same paths,
        {{!is_dir_path}directoryness} included. They may however differ
        syntactically when converted to a string. Note that [q] is
        {{!normalize}normalized}.}
-    {- [None] otherwise.}}
-
+    {- [None] otherwise. This notably happens if [p] is absolute
+       and [root] relative or if [root] is relative and [p] is absolute.
+       In both cases it's not possible to know how to get from [p] from
+       [root].}}
     {{!ex_relativize}Examples}. *)
 
 val is_rooted : root:t -> t -> bool
@@ -855,6 +858,14 @@ type +'a map = 'a Map.t
 
     {2:ex_relativize {!relativize}}
     {ul
+    {- [relativize ~root:(v "/a/b") (v "/a/b")] is [Some (v ".")]}
+    {- [relativize ~root:(v "/a/b") (v "/a/b/")] is [Some (v "./")]}
+    {- [relativize ~root:(v "/a/b/") (v "/a/b/")] is [Some (v "./")]}
+    {- [relativize ~root:(v "/a/b/") (v "/a/b")] is [Some (v "../b")]}
+    {- [relativize ~root:(v "a/b") (v "a/b")] is [Some (v ".")]}
+    {- [relativize ~root:(v "a/b/") (v "a/b/")] is [Some (v "./")]}
+    {- [relativize ~root:(v "a/b") (v "a/b/")] is [Some (v "./")]}
+    {- [relativize ~root:(v "a/b/") (v "a/b")] is [Some (v "../b")]}
     {- [relativize ~root:(v "/a/b") (v "c")] is [None]}
     {- [relativize ~root:(v "/a/b") (v "/c")] is [Some (v "../../c")]}
     {- [relativize ~root:(v "/a/b") (v "/c/")] is [Some (v "../../c/")]}
@@ -862,8 +873,6 @@ type +'a map = 'a Map.t
     {- [relativize ~root:(v "/a/b") (v "/c/")] is [Some (v "../../c/")]}
     {- [relativize ~root:(v "/a/b") (v "/a/b/c")] is [Some (v "c")]}
     {- [relativize ~root:(v "/a/b") (v "/a/b/c/")] is [Some (v "c/")]}
-    {- [relativize ~root:(v "/a/b") (v "/a/b")] is [Some (v "../b")]}
-    {- [relativize ~root:(v "/a/b") (v "/a/b/")] is [Some (v ".")]}
     {- [relativize ~root:(v "a/b") (v "/c")] is [None].}
     {- [relativize ~root:(v "a/b") (v "c")] is [Some (v "../../c")]}
     {- [relativize ~root:(v "a/b") (v "c/")] is [Some (v "../../c/")]}

@@ -693,9 +693,20 @@ let relativize () =
     | None -> eq_opt None result ~__POS__
     | Some rel as r ->
         eq_opt r result ~__POS__;
+        let p = if Fpath.is_current_dir rel then Fpath.to_dir_path p else p in
         eq (Fpath.normalize (Fpath.append root rel)) (Fpath.normalize p)
           ~__POS__;
   in
+  relativize (v "/a/b") (v "/a/b") (Some (v ".")) ~__POS__;
+  relativize (v "/a/b") (v "/a/b/") (Some (v "./")) ~__POS__;
+  relativize (v "/a/b/") (v "/a/b/") (Some (v "./")) ~__POS__;
+  relativize (v "/a/b/") (v "/a/b") (Some (v "../b")) ~__POS__;
+  relativize (v "a/b") (v "a/b") (Some (v ".")) ~__POS__;
+  relativize (v "a/b") (v "a/b/") (Some (v "./")) ~__POS__;
+  relativize (v "a/b/") (v "a/b/") (Some (v "./")) ~__POS__;
+  relativize (v "a/b/") (v "a/b") (Some (v "../b")) ~__POS__;
+  relativize (v "a") (v "a") (Some (v ".")) ~__POS__;
+  relativize (v "a/") (v "a/") (Some (v "./")) ~__POS__;
   relativize (v "/a/") (v "/a") (Some (v "../a")) ~__POS__;
   relativize (v "/a/") (v "/a/") (Some (v "./")) ~__POS__;
   relativize (v "/a/") (v "/") (Some (v "../")) ~__POS__;

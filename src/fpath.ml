@@ -484,6 +484,8 @@ let rem_prefix prefix p = match is_prefix prefix p with
 (* Roots and relativization *)
 
 let _relativize ~root p =
+  if String.equal root p
+  then Some (segs_to_path (if is_dir_path p then ["."; ""] else ["."])) else
   let root = (* root is always interpreted as a directory *)
     let root = normalize root in
     if root.[String.length root - 1] = dir_sep_char then root else
@@ -544,7 +546,9 @@ let relativize = if windows then relativize_windows else relativize_posix
 
 let is_rooted ~root p = match relativize ~root p with
 | None -> false
-| Some r -> not (String.equal dotdot r || String.is_prefix ~affix:dotdot_dir r)
+| Some r ->
+    not (String.equal dotdot r || String.is_prefix ~affix:dotdot_dir r ||
+         (String.equal root p && not (is_dir_path p)))
 
 (* Predicates and comparison *)
 

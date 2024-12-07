@@ -1,3 +1,7 @@
+
+- `Fpath.relativize` improve docs and change some correct but
+  surpising results. Thanks to Martin Jambon for the report (#20).
+
 v0.7.3 2020-09-08 Zagreb
 ------------------------
 
